@@ -1,0 +1,9 @@
+# Telegram Bot API (зафиксировано по результатам тестов)
+python-telegram-bot>=20.0,<23
+# DeepSeek API (совместим с OpenAI SDK)
+openai>=1.0.0,<3
+# Загрузка .env
+python-dotenv>=1.0.0
+# Robokassa server (VM)
+fastapi>=0.115.0,<0.135
+uvicorn[standard]>=0.32.0,<0.42

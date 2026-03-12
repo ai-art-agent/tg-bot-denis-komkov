@@ -1,0 +1,108 @@
+# Telegram-бот «ИИ-психолог» (DeepSeek)
+
+Бот для Telegram с ответами на основе **DeepSeek** в роли поддерживающего «психолога»: выслушивает, поддерживает и мягко направляет к специалистам при необходимости.
+
+## Быстрый старт
+
+1. **Прочитайте пошаговую инструкцию** — [INSTRUCTIONS.md](INSTRUCTIONS.md). На каждом этапе есть вопросы: ответьте на них и при необходимости дополняйте настройки.
+
+2. **Создайте бота в Telegram** (Этап 1), получите токен от [@BotFather](https://t.me/BotFather).
+
+3. **Получите API-ключ DeepSeek** (Этап 2): [platform.deepseek.com](https://platform.deepseek.com) → API Keys.
+
+4. **Создайте файл `.env`** в этой папке (скопируйте из `.env.example` и заполните):
+   ```env
+   TELEGRAM_BOT_TOKEN=ваш_токен
+   DEEPSEEK_API_KEY=ваш_ключ
+   ```
+
+5. **Установите зависимости и запустите:**
+   ```bash
+   pip install -r requirements.txt
+   python bot.py
+   ```
+   В Windows можно запускать двойным кликом по **start_bot.bat**.
+
+Подробные шаги, уточняющие вопросы и настройка личности бота — в [INSTRUCTIONS.md](INSTRUCTIONS.md).
+
+## Настройка поведения
+
+В начале файла `bot.py` есть блок настроек (константы):
+
+- **BOT_NAME**, **BOT_DESCRIPTION** — имя и описание бота.
+- **SYSTEM_PROMPT** — системный промпт для DeepSeek (роль «психолога», ограничения).
+- **DEEPSEEK_MODEL** — модель: `deepseek-chat` или `deepseek-reasoner`.
+- **MAX_HISTORY_MESSAGES** — сколько последних пар сообщений хранить (0 = без истории).
+- **MAX_RESPONSE_LENGTH** — макс. длина ответа в символах (0 = без лимита).
+- **START_DISCLAIMER**, **SUPPORT_TEXT**, **PRIVACY_TEXT** — тексты для /start, /support, /privacy.
+- **ALLOWED_USER_IDS** — список разрешённых user_id (пустой = доступ у всех).
+- **LOG_TO_FILE** — писать ли логи в файлы (`bot.log`, `payments.log`); см. [LOGGING.md](LOGGING.md).
+
+Меняйте их в соответствии с ответами из инструкции.
+
+## Команды бота
+
+| Команда   | Описание |
+|-----------|----------|
+| /start   | Приветствие и согласие (при необходимости) |
+| /help    | Справка по командам |
+| /support | Контакты поддержки (если заданы) |
+| /privacy | Краткая политика конфиденциальности |
+
+Под сообщением при /start есть кнопка **«Начать новый диалог»** — сброс контекста разговора.
+
+## Требования
+
+- Python 3.10+
+- Токен Telegram-бота (от @BotFather)
+- API-ключ DeepSeek (модель по умолчанию: **deepseek-chat**)
+
+## Запуск
+
+- **Терминал:** `python bot.py`
+- **Windows:** двойной клик по `start_bot.bat`
+
+Остановка: в терминале `Ctrl+C`.
+
+## Проверка диалога без Telegram
+
+Чтобы проверять ответы бота без переписки в Telegram (тот же промпт, валидатор, история):
+
+**Мини UI с кнопками (как в Telegram):**
+```bash
+python test_dialog_ui.py
+```
+Откроется окно: история переписки, под ответом бота — кнопки (нажатие отправляет соответствующий ответ), поле ввода для произвольного текста, кнопка **«Новый диалог»** для сброса и повторного прохождения сценария.
+
+**Консольный режим:**
+```bash
+python test_dialog.py
+```
+- Вводите сообщения так, как бы писал пользователь (например: **Начать**, **Начать диагностику**, **Женская форма обращения**).
+- **new** или **сброс** — начать новый диалог (очистить историю); можно вызывать сколько угодно раз. После ответа бота можно ввести **1**, **2**, … чтобы нажать кнопку по номеру.
+- **exit** или **q** — выход.
+
+Нужен только `DEEPSEEK_API_KEY` в `.env`; Telegram не используется.
+
+## Документация
+
+| Файл | Содержание |
+|------|------------|
+| [INSTRUCTIONS.md](INSTRUCTIONS.md) | Пошаговая настройка, этапы, ответы на вопросы |
+| [LOGGING.md](LOGGING.md) | Файлы логов (bot.log, payments.log, robokassa.log, digest.log), ротация, лимиты |
+| [GROUP_DIGEST_SETUP.md](GROUP_DIGEST_SETUP.md) | Дайджест оплат по групповым занятиям, cron |
+| [DEPLOY_YANDEX_CLOUD.md](DEPLOY_YANDEX_CLOUD.md) | Развёртывание на ВМ (Yandex Cloud), systemd, Robokassa |
+| [DATABASE_DESIGN.md](DATABASE_DESIGN.md) | Таблицы заказов и клиентов, схема анкеты |
+
+## Обновление и деплой на ВМ
+
+Запустите **deploy_to_vm.bat**: откроются **два окна** — в первом тесты по блокам (Telegram, промпт, Robokassa, UI), во втором коммит/push и затем окно ВМ для `git pull` и перезапуска служб. Подробности деплоя — в [DEPLOY_YANDEX_CLOUD.md](DEPLOY_YANDEX_CLOUD.md). Файлы: `deploy_to_vm.bat`, `deploy_local.ps1`, `deploy_remote.ps1`.
+
+**Как обновить всё после правок:**
+1. **Локально** — сохраните изменения в `bot.py`, `system_prompt.txt`, конфигах или скриптах деплоя.
+2. **Деплой на ВМ** — запустите **deploy_to_vm.bat** (или вручную: `git add .` → `git commit -m "..."` → `git push`; на ВМ: `cd ~/tg-ai-enhel-method` → `git pull` → `pip install -r requirements.txt` при изменении зависимостей → `sudo systemctl restart tg-ai-enhel-method`).
+3. **Промпт** — при изменении `system_prompt.txt` достаточно перезапустить бота (промпт читается при старте).
+4. **Переменные окружения** — при добавлении новых ключей в `.env` скопируйте их в `.env` на ВМ и перезапустите службу.
+5. **Unit systemd** — при изменении `deploy/tg-ai-enhel-method.service` на ВМ выполните: `sudo cp ~/tg-ai-enhel-method/deploy/tg-ai-enhel-method.service /etc/systemd/system/` → `sudo systemctl daemon-reload` → `sudo systemctl restart tg-ai-enhel-method`.
+
+После заполнения ответов в INSTRUCTIONS.md можно дополнительно адаптировать скрипт (например, голосовые сообщения, другой тон, другие контакты поддержки).
