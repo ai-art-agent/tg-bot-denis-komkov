@@ -252,12 +252,40 @@ STEP_KEYBOARDS = {
 }
 
 READINESS_CONSENT_TEXTS = {
+    "да", "да.", "да!", "да да", "да, да",
     "хочу продолжить",
-    "да, хочу меняться",
-    "да хочу меняться",
-    "да, хочу что-то менять",
-    "да хочу что-то менять",
+    "да, хочу меняться", "да хочу меняться",
+    "да, хочу что-то менять", "да хочу что-то менять",
+    "готов", "готов.", "готова", "готова.",
+    "согласен", "согласен.", "согласна", "согласна.",
+    "соглашусь", "согласна попробовать", "согласен попробовать",
+    "конечно", "конечно.", "да конечно", "да, конечно",
+    "ок", "ок.", "окей", "ok", "okay",
+    "давай", "давай.", "давайте", "давайте.",
+    "поехали", "поехали.", "погнали",
+    "готов попробовать", "готова попробовать",
+    "хочу попробовать", "хочу попробовать.",
+    "непременно", "непременно.",
+    "с удовольствием", "с удовольствием.",
+    "да, готов", "да готов", "да, готова", "да готова",
+    "хочу", "хочу.", "буду", "буду.",
+    "да, согласен", "да согласен", "да, согласна", "да согласна",
+    "подходит", "подходит.", "подойдёт", "подойдёт.",
+    "да, подходит", "да подходит",
+    "верно", "верно.", "именно", "именно так",
+    "так и есть", "да, так и есть",
+    "готов действовать", "готова действовать",
+    "хочу измениться", "хочу меняться",
 }
+
+# Фразы в ответе модели, при которых принудительно показываем кнопку [STEP:readiness], если модель не поставила тег.
+READINESS_REPLY_KEYWORDS = (
+    "готовы предпринять", "готовность", "готовность действовать",
+    "какой формат", "формат вам откликается", "откликается больше",
+    "конкретные шаги", "выйти из этого состояния", "начать выходить",
+    "насколько вы сейчас готовы", "насколько вы готовы",
+    "предпринять шаги", "изменить текущую ситуацию",
+)
 
 # Кнопки продуктов (callback_data) -> внутренний код продукта для платежей
 PRODUCT_BUTTON_TO_CODE = {
@@ -384,6 +412,17 @@ def _strip_step_tags_for_display(text: str) -> str:
         return text
     out = STEP_TAG_ANYWHERE.sub(" ", text)
     return re.sub(r"\s+", " ", out).strip() or "…"
+
+
+def _force_readiness_step_if_relevant(reply_clean: str) -> Optional[str]:
+    """Если в ответе модели есть фразы про готовность к шагам/формат — возвращаем 'readiness', чтобы кнопка «Хочу продолжить» показывалась в 100% случаев."""
+    if not reply_clean or not reply_clean.strip():
+        return None
+    lower = reply_clean.lower()
+    for kw in READINESS_REPLY_KEYWORDS:
+        if kw in lower:
+            return "readiness"
+    return None
 
 
 def _parse_step_from_reply(reply: str) -> tuple[str, Optional[str]]:
@@ -856,6 +895,8 @@ async def get_bot_reply(
     psychologist_ms = int((time.monotonic() - t0_psych) * 1000)
 
     reply_clean, step_id = _parse_step_from_reply(reply_raw)
+    if step_id is None:
+        step_id = _force_readiness_step_if_relevant(reply_clean)
     keyboard = _keyboard_for_step(step_id, context) if step_id else None
     if keyboard is None:
         reply_clean, keyboard = _parse_custom_buttons(reply_clean)
@@ -1069,6 +1110,8 @@ async def _reply_to_user(
         reply_raw = await _generate_reply(messages, stream=True, on_chunk=stream_edit)
 
         reply_clean, step_id = _parse_step_from_reply(reply_raw)
+        if step_id is None:
+            step_id = _force_readiness_step_if_relevant(reply_clean)
         keyboard = _keyboard_for_step(step_id, context) if step_id else None
         if keyboard is None:
             reply_clean, keyboard = _parse_custom_buttons(reply_clean)
