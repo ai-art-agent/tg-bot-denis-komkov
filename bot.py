@@ -477,22 +477,19 @@ async def _send_miniapp_entry(update: Update, context: ContextTypes.DEFAULT_TYPE
             await target.reply_text("Сейчас мини-приложение недоступно. Попробуй позже.")
         return
 
-    kb = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "Выбрать формат и оплатить",
-                    web_app=WebAppInfo(url=url),
-                )
-            ]
-        ]
-    )
+    # Telegram открывает Web App (встроенное окно) только по HTTPS. Для HTTP даём обычную ссылку — откроется в браузере.
+    if url.startswith("https://"):
+        btn = InlineKeyboardButton("Выбрать формат и оплатить", web_app=WebAppInfo(url=url))
+    else:
+        btn = InlineKeyboardButton("Выбрать формат и оплатить", url=url)
+    kb = InlineKeyboardMarkup([[btn]])
+
     target = _get_reply_target(update)
     if target:
         await target.reply_text(
             "Ты сделал важный шаг — признал, что готов что-то менять. "
-            "Сейчас откроется окно, где можно спокойно выбрать формат работы, "
-            "изучить варианты и оформить участие в том темпе, который подходит именно тебе.",
+            "Нажми кнопку ниже: откроется окно с выбором формата работы и оплатой."
+            + (" (По ссылке http откроется в браузере — для окна внутри Telegram нужен HTTPS.)" if url.startswith("http://") else ""),
             reply_markup=kb,
             disable_web_page_preview=True,
         )
@@ -504,10 +501,10 @@ def _keyboard_for_step(
     chat_id: Optional[int] = None,
     user_id: Optional[int] = None,
 ) -> Optional[InlineKeyboardMarkup]:
-    """Клавиатура по step_id; для readiness при заданных chat_id/user_id и MINIAPP_URL — кнопка «Хочу продолжить» открывает мини-приложение сразу."""
+    """Клавиатура по step_id; для readiness при заданных chat_id/user_id и MINIAPP_URL — кнопка «Хочу продолжить» открывает мини-приложение. Telegram принимает только HTTPS для Web App; при HTTP показываем callback, по нажатию отправим сообщение со ссылкой."""
     if step_id == "readiness":
         miniapp_url = _build_miniapp_url(chat_id, user_id) if (chat_id is not None and user_id is not None) else None
-        if miniapp_url:
+        if miniapp_url and miniapp_url.startswith("https://"):
             return InlineKeyboardMarkup([
                 [InlineKeyboardButton("Хочу продолжить", web_app=WebAppInfo(url=miniapp_url))],
                 [InlineKeyboardButton("Еще подумаю", callback_data="Еще подумаю")],
