@@ -688,6 +688,14 @@ async def send_payment_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         cfg = RobokassaConfig.from_env()
         db = _get_payments_db()
     except Exception as e:
+        # #region agent log
+        try:
+            _log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug-f3456b.log")
+            with open(_log_path, "a", encoding="utf-8") as _f:
+                _f.write(json.dumps({"sessionId": "f3456b", "hypothesisId": "payment_error", "location": "bot.py:send_payment_link", "message": "Robokassa config/db error", "data": {"type": e.__class__.__name__, "msg": str(e)}, "timestamp": int(time.time() * 1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
         logging.exception("Robokassa config/db error: %s", e)
         await query.edit_message_text("Оплата временно недоступна. Попробуй позже.")
         return
