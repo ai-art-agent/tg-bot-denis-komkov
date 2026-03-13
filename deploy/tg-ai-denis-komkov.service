@@ -1,0 +1,27 @@
+# Служба systemd для бота Дениса Комкова на Ubuntu в Yandex Cloud.
+# Установка (на ВМ):
+#   sudo cp ~/tg-ai-denis-komkov/deploy/tg-ai-denis-komkov.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable tg-ai-denis-komkov
+#   sudo systemctl start tg-ai-denis-komkov
+#
+# Если на ВМ пользователь не enhel-method, а ubuntu — замените enhel-method на ubuntu в путях и User ниже.
+
+[Unit]
+Description=Telegram bot Denis Komkov
+After=network.target
+
+[Service]
+Type=simple
+User=enhel-method
+WorkingDirectory=/home/enhel-method/tg-ai-denis-komkov
+Environment=PATH=/home/enhel-method/tg-ai-denis-komkov/venv/bin
+ExecStart=/home/enhel-method/tg-ai-denis-komkov/venv/bin/python bot.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tg-ai-denis-komkov
+
+[Install]
+WantedBy=multi-user.target
