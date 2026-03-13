@@ -1,3 +1,6 @@
+# Таймзоны (Europe/Moscow и др.) на Windows без встроенных IANA данных
+tzdata>=2024.1
+
 # Telegram Bot API (зафиксировано по результатам тестов)
 python-telegram-bot>=20.0,<23
 # DeepSeek API (совместим с OpenAI SDK)

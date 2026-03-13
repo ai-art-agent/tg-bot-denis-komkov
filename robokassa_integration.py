@@ -78,20 +78,32 @@ class RobokassaConfig:
     @staticmethod
     def from_env() -> "RobokassaConfig":
         merchant_login = _env("ROBOKASSA_MERCHANT_LOGIN")
-        password1 = _env("ROBOKASSA_PASSWORD1")
-        password2 = _env("ROBOKASSA_PASSWORD2")
-        if not merchant_login:
-            raise ValueError("Не задана переменная окружения ROBOKASSA_MERCHANT_LOGIN")
-        if not password1:
-            raise ValueError("Не задана переменная окружения ROBOKASSA_PASSWORD1")
-        if not password2:
-            raise ValueError("Не задана переменная окружения ROBOKASSA_PASSWORD2")
-
         merchant_url = _env(
             "ROBOKASSA_MERCHANT_URL",
             "https://auth.robokassa.ru/Merchant/Index.aspx",
         )
         is_test = (_env("ROBOKASSA_IS_TEST", "0") or "0") in ("1", "true", "True", "yes", "YES")
+
+        if is_test:
+            password1 = _env("ROBOKASSA_PASSWORD1_TEST") or _env("ROBOKASSA_PASSWORD1")
+            password2 = _env("ROBOKASSA_PASSWORD2_TEST") or _env("ROBOKASSA_PASSWORD2")
+        else:
+            password1 = _env("ROBOKASSA_PASSWORD1")
+            password2 = _env("ROBOKASSA_PASSWORD2")
+
+        if not merchant_login:
+            raise ValueError("Не задана переменная окружения ROBOKASSA_MERCHANT_LOGIN")
+        if not password1:
+            raise ValueError(
+                "Не задана переменная окружения ROBOKASSA_PASSWORD1"
+                + (" или ROBOKASSA_PASSWORD1_TEST (при ROBOKASSA_IS_TEST=1)" if is_test else "")
+            )
+        if not password2:
+            raise ValueError(
+                "Не задана переменная окружения ROBOKASSA_PASSWORD2"
+                + (" или ROBOKASSA_PASSWORD2_TEST (при ROBOKASSA_IS_TEST=1)" if is_test else "")
+            )
+
         return RobokassaConfig(
             merchant_login=merchant_login,
             password1=password1,

@@ -1,6 +1,6 @@
 # Local: commit and push (window stays open)
 $ErrorActionPreference = "Stop"
-$ProjectPath = "C:\Users\AI_Art\work\hoff-man\tg-bots\enhel_method"
+$ProjectPath = "C:\Users\AI_Art\work\hoff-man\tg-bots\denis-komarov"
 Set-Location $ProjectPath
 
 Write-Host "============================================" -ForegroundColor Cyan
@@ -15,7 +15,7 @@ Write-Host ""
 Write-Host "--- 2. Add files ---" -ForegroundColor Yellow
 git add .
 git add bot.py
-git add deploy/tg-ai-enhel-method.service
+git add deploy/tg-ai-denis-komkov.service
 git add deploy/robokassa-server.service
 git add robokassa_integration.py
 git add robokassa_server.py

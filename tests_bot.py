@@ -11,7 +11,7 @@ def test_1_import_and_prompt():
     assert hasattr(bot, 'SYSTEM_PROMPT'), 'SYSTEM_PROMPT отсутствует'
     assert isinstance(bot.SYSTEM_PROMPT, str), 'SYSTEM_PROMPT не строка'
     assert len(bot.SYSTEM_PROMPT) > 100, 'Промпт слишком короткий'
-    assert 'Владима Энхель' in bot.SYSTEM_PROMPT, 'Промпт не содержит ключевой роли'
+    assert 'Денис Комков' in bot.SYSTEM_PROMPT, 'Промпт не содержит ключевой роли'
     assert 'start_diagnosis' in bot.STEP_KEYBOARDS, 'Нет клавиатуры start_diagnosis'
     assert 'form_address' in bot.STEP_KEYBOARDS, 'Нет клавиатуры form_address'
     assert 'messenger' in bot.STEP_KEYBOARDS, 'Нет клавиатуры messenger'
