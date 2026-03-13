@@ -26,7 +26,7 @@ from robokassa_integration import (
 )
 
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -212,6 +212,8 @@ STREAM_RESPONSE = True
 # Голосовые сообщения: транскрипция через OpenAI Whisper. Нужен OPENAI_API_KEY в .env.
 VOICE_ENABLED = True
 
+MINIAPP_URL_BASE = (os.getenv("MINIAPP_URL") or "").strip()
+
 # Кнопки по шагам диалога: ключ = step_id из тега [STEP:step_id] в ответе модели.
 STEP_KEYBOARDS = {
     "start_diagnosis": [
@@ -247,6 +249,14 @@ STEP_KEYBOARDS = {
     "webinar_offer": [
         [("Онлайн вебинар", "Онлайн вебинар")],
     ],
+}
+
+READINESS_CONSENT_TEXTS = {
+    "хочу продолжить",
+    "да, хочу меняться",
+    "да хочу меняться",
+    "да, хочу что-то менять",
+    "да хочу что-то менять",
 }
 
 # Кнопки продуктов (callback_data) -> внутренний код продукта для платежей
@@ -397,6 +407,48 @@ def _parse_step_from_reply(reply: str) -> tuple[str, Optional[str]]:
 def _readiness_label_and_callback(form_address: Optional[str]) -> tuple[str, str]:
     """Подпись и callback кнопки для шага readiness (обезличенно)."""
     return "Хочу продолжить", "Хочу продолжить"
+
+
+def _build_miniapp_url(chat_id: int, user_id: int) -> Optional[str]:
+    base = MINIAPP_URL_BASE
+    if not base:
+        return None
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}chat_id={chat_id}&user_id={user_id}"
+
+
+async def _send_miniapp_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отправляет пользователю ссылку на мини-приложение с выбором формата и оплатой."""
+    chat = update.effective_chat
+    user = update.effective_user
+    if not chat or not user:
+        return
+    url = _build_miniapp_url(chat.id, user.id)
+    if not url:
+        target = _get_reply_target(update)
+        if target:
+            await target.reply_text("Сейчас мини-приложение недоступно. Попробуй позже.")
+        return
+
+    kb = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "Выбрать формат и оплатить",
+                    web_app=WebAppInfo(url=url),
+                )
+            ]
+        ]
+    )
+    target = _get_reply_target(update)
+    if target:
+        await target.reply_text(
+            "Ты сделал важный шаг — признал, что готов что-то менять. "
+            "Сейчас откроется окно, где можно спокойно выбрать формат работы, "
+            "изучить варианты и оформить участие в том темпе, который подходит именно тебе.",
+            reply_markup=kb,
+            disable_web_page_preview=True,
+        )
 
 
 def _keyboard_for_step(step_id: str, context: Optional[ContextTypes.DEFAULT_TYPE] = None) -> Optional[InlineKeyboardMarkup]:
@@ -639,6 +691,11 @@ async def handle_step_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data["group_tariff"] = "standard"
         if context.user_data.get("selected_product") is None:
             context.user_data["selected_product"] = "group"
+
+    # Переход в мини-приложение после любого согласия «готов меняться».
+    if user_text.strip().lower() in READINESS_CONSENT_TEXTS:
+        await _send_miniapp_entry(update, context)
+        return
 
     # Специальная обработка оплаты (не отправляем это в модель).
     if user_text.lower() == "оплатить":
@@ -1058,6 +1115,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text("Напиши текстом, пожалуйста.")
         return
 
+    # Переход в мини-приложение после текстового согласия «готов меняться».
+    if text.strip().lower() in READINESS_CONSENT_TEXTS:
+        await _send_miniapp_entry(update, context)
+        return
+
     # Служебная команда SHOW_JSON — вызываем модель для получения JSON анкеты, сохраняем в clients, клиенту показываем только «Запрос принят».
     if text == "SHOW_JSON":
         add_to_history(user_id, "user", text)
@@ -1119,6 +1181,11 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     if not user_text:
         await update.message.reply_text("Текст не распознан. Попробуй ещё раз или напиши.")
+        return
+
+    # Переход в мини-приложение после голосового согласия «готов меняться».
+    if user_text.strip().lower() in READINESS_CONSENT_TEXTS:
+        await _send_miniapp_entry(update, context)
         return
 
     # Служебная команда SHOW_JSON — вызываем модель для получения JSON анкеты, сохраняем в clients, клиенту показываем только «Запрос принят».
