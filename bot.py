@@ -498,9 +498,20 @@ async def _send_miniapp_entry(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
 
-def _keyboard_for_step(step_id: str, context: Optional[ContextTypes.DEFAULT_TYPE] = None) -> Optional[InlineKeyboardMarkup]:
-    """Клавиатура по step_id; для readiness подпись кнопки зависит от context.user_data['form_address']; для pay_choice в callback «Оплатить» зашивается код продукта."""
+def _keyboard_for_step(
+    step_id: str,
+    context: Optional[ContextTypes.DEFAULT_TYPE] = None,
+    chat_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Optional[InlineKeyboardMarkup]:
+    """Клавиатура по step_id; для readiness при заданных chat_id/user_id и MINIAPP_URL — кнопка «Хочу продолжить» открывает мини-приложение сразу."""
     if step_id == "readiness":
+        miniapp_url = _build_miniapp_url(chat_id, user_id) if (chat_id is not None and user_id is not None) else None
+        if miniapp_url:
+            return InlineKeyboardMarkup([
+                [InlineKeyboardButton("Хочу продолжить", web_app=WebAppInfo(url=miniapp_url))],
+                [InlineKeyboardButton("Еще подумаю", callback_data="Еще подумаю")],
+            ])
         label, callback = _readiness_label_and_callback(
             context.user_data.get("form_address") if context else None
         )
@@ -1120,7 +1131,7 @@ async def _reply_to_user(
         reply_clean, step_id = _parse_step_from_reply(reply_raw)
         if step_id is None:
             step_id = _force_readiness_step_if_relevant(reply_clean)
-        keyboard = _keyboard_for_step(step_id, context) if step_id else None
+        keyboard = _keyboard_for_step(step_id, context, chat_id=chat.id, user_id=user_id) if step_id else None
         if keyboard is None:
             reply_clean, keyboard = _parse_custom_buttons(reply_clean)
         final_text = reply_clean[:4096] if len(reply_clean) > 4096 else reply_clean
