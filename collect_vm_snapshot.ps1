@@ -15,6 +15,23 @@ echo "=== VM SNAPSHOT START ===" > "$SNAP"
 echo "DATE: $(date -Iseconds)" >> "$SNAP"
 echo "" >> "$SNAP"
 
+echo "=== ROOT / (top-level) ===" >> "$SNAP"
+ls -la / 2>&1 >> "$SNAP"
+echo "" >> "$SNAP"
+
+echo "=== HOME DIRECTORY ($HOME) ===" >> "$SNAP"
+ls -la "$HOME" 2>&1 >> "$SNAP"
+echo "" >> "$SNAP"
+echo "--- HOME: directories one level deep ---" >> "$SNAP"
+for d in "$HOME"/*/; do
+  [ -d "$d" ] && echo "$d" >> "$SNAP" && ls -la "$d" 2>&1 | head -50 >> "$SNAP"
+done
+echo "" >> "$SNAP"
+
+echo "=== /etc/systemd/system (unit files) ===" >> "$SNAP"
+ls -la /etc/systemd/system/*.service 2>&1 >> "$SNAP"
+echo "" >> "$SNAP"
+
 for DIR in "$HOME/tg-ai-denis-komkov" "$HOME/tg-ai-enhel-method"; do
   if [ -d "$DIR" ]; then
     echo "=== PROJECT: $DIR ===" >> "$SNAP"
