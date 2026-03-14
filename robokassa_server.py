@@ -102,7 +102,7 @@ PRODUCTS = {
     },
     "pro": {
         "amount": PRICE_PRO_RUB,
-        "description": "Оплата: AI-Психолог Pro (месяц, предзапуск)",
+        "description": "Оплата: AI-Психолог Pro (месяц, предзаказ)",
     },
     "personal_1m": {
         "amount": PRICE_PERSONAL_1M_RUB,
@@ -262,32 +262,57 @@ def _miniapp_html() -> str:
       --danger: #f97373;
     }}
     * {{ box-sizing: border-box; }}
-    body {{
+    html, body {{
       margin: 0;
-      padding: 16px;
+      padding: 0;
+      min-height: 100vh;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #1e293b 0, #020617 55%);
+      background: #0b1220;
       color: var(--text);
+    }}
+    body {{
+      padding: 12px 16px 24px;
     }}
     .container {{
       max-width: 480px;
-      margin: 0 auto 40px;
+      margin: 0 auto;
+      min-height: 100%;
     }}
-    h1 {{ font-size: 1.3rem; margin: 0 0 8px; }}
-    .lead {{ font-size: 0.9rem; color: var(--muted); margin-bottom: 16px; }}
+    .nav-back {{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+      padding: 6px 0;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }}
+    .nav-back:hover {{ color: var(--text); }}
+    .nav-back-arrow {{ font-size: 1.2rem; }}
+    h1 {{ font-size: 1.2rem; margin: 0 0 6px; }}
+    .lead {{ font-size: 0.85rem; color: var(--muted); margin-bottom: 10px; line-height: 1.35; }}
     .cards {{
       display: grid;
-      gap: 12px;
-      margin-top: 12px;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }}
+    .cards.single-col {{
+      grid-template-columns: 1fr;
     }}
     .card {{
       background: linear-gradient(145deg, rgba(15,23,42,0.95), rgba(15,23,42,0.9));
-      border-radius: 16px;
-      padding: 14px 14px 12px;
+      border-radius: 12px;
+      padding: 10px 10px 8px;
       border: 1px solid rgba(148,163,184,0.25);
-      box-shadow: 0 18px 40px rgba(15,23,42,0.95);
+      box-shadow: 0 8px 24px rgba(15,23,42,0.9);
       cursor: pointer;
       transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.12s;
+    }}
+    .card.selected {{
+      border-color: rgba(34,197,94,0.9);
+      box-shadow: 0 0 0 2px rgba(34,197,94,0.35);
     }}
     .card:hover {{
       transform: translateY(-1px);
@@ -298,22 +323,24 @@ def _miniapp_html() -> str:
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 6px;
+      gap: 6px;
+      margin-bottom: 4px;
     }}
     .card-title {{
-      font-size: 0.98rem;
+      font-size: 0.82rem;
       font-weight: 600;
+      line-height: 1.2;
     }}
     .badge {{
-      font-size: 0.67rem;
+      font-size: 0.58rem;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 4px 8px;
+      letter-spacing: 0.04em;
+      padding: 2px 6px;
       border-radius: 999px;
       background: rgba(15,23,42,0.9);
       border: 1px solid rgba(148,163,184,0.35);
       color: var(--muted);
+      white-space: nowrap;
     }}
     .badge-accent {{
       border-color: rgba(34,197,94,0.6);
@@ -323,33 +350,35 @@ def _miniapp_html() -> str:
     .price-row {{
       display: flex;
       align-items: baseline;
-      gap: 8px;
+      gap: 6px;
       margin-bottom: 2px;
     }}
     .price-main {{
-      font-size: 1rem;
+      font-size: 0.88rem;
       font-weight: 600;
       color: #e5e7eb;
     }}
     .price-old {{
-      font-size: 0.8rem;
+      font-size: 0.7rem;
       color: #6b7280;
       text-decoration: line-through;
     }}
     .card-desc {{
-      font-size: 0.82rem;
+      font-size: 0.72rem;
       color: var(--muted);
+      line-height: 1.3;
+      margin: 0;
     }}
     .pill {{
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
+      gap: 4px;
+      padding: 2px 6px;
       border-radius: 999px;
       background: var(--accent-soft);
       color: #bbf7d0;
-      font-size: 0.7rem;
-      margin-top: 6px;
+      font-size: 0.62rem;
+      margin-top: 4px;
     }}
     .view {{
       display: none;
@@ -402,14 +431,23 @@ def _miniapp_html() -> str:
       border: 1px solid rgba(148,163,184,0.5);
     }}
     .bullet-list {{
-      margin: 8px 0 0;
-      padding-left: 18px;
-      font-size: 0.8rem;
+      margin: 6px 0 0;
+      padding-left: 14px;
+      font-size: 0.75rem;
       color: var(--muted);
     }}
     .bullet-list li {{
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }}
+    #view-personal .cards {{
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }}
+    #view-personal .card {{
+      padding: 8px;
+    }}
+    #view-personal .card-title { font-size: 0.75rem; }
+    #view-personal .price-main { font-size: 0.82rem; }
   </style>
 </head>
 <body>
@@ -417,8 +455,7 @@ def _miniapp_html() -> str:
     <div id="view-intro" class="view active">
       <h1>Шаг к изменениям</h1>
       <p class="lead">
-        Ты уже признал, что готов что-то менять. Теперь выбери формат, который лучше всего поддержит тебя
-        в этом процессе.
+        Вы уже сделали шаг к изменениям. Выберите формат, который лучше всего поддержит вас в этом процессе.
       </p>
       <div class="cards">
         <div class="card" onclick="openProduct('group')">
@@ -452,7 +489,7 @@ def _miniapp_html() -> str:
         <div class="card" onclick="openProduct('pro')">
           <div class="card-header">
             <div class="card-title">AI‑Психолог Pro</div>
-            <span class="badge badge-accent">Предзапуск</span>
+            <span class="badge badge-accent">Предзаказ</span>
           </div>
           <div class="price-row">
             <span class="price-main">{price_pro_today} ₽ / мес</span>
@@ -461,7 +498,7 @@ def _miniapp_html() -> str:
           <p class="card-desc">
             Личный ИИ‑помощник на основе моих методик, доступный 24/7.
           </p>
-          <div class="pill">Сейчас действует предзапуск по сниженной цене</div>
+          <div class="pill">Сейчас действует предзаказ по сниженной цене</div>
         </div>
 
         <div class="card" onclick="openProduct('personal')">
@@ -480,6 +517,7 @@ def _miniapp_html() -> str:
     </div>
 
     <div id="view-group" class="view">
+      <div class="nav-back" onclick="showView('intro')"><span class="nav-back-arrow">←</span> Назад</div>
       <h2 class="section-title">Групповые занятия</h2>
       <p class="section-sub">4 недели глубинной работы в небольшой группе с моим сопровождением.</p>
       <div class="pill-row">
@@ -505,6 +543,7 @@ def _miniapp_html() -> str:
     </div>
 
     <div id="view-webinar" class="view">
+      <div class="nav-back" onclick="showView('intro')"><span class="nav-back-arrow">←</span> Назад</div>
       <h2 class="section-title">Онлайн вебинар</h2>
       <p class="section-sub">
         Интенсив до 1,5 часов для самостоятельной проработки состояния и понимания причин.
@@ -524,12 +563,13 @@ def _miniapp_html() -> str:
     </div>
 
     <div id="view-pro" class="view">
+      <div class="nav-back" onclick="showView('intro')"><span class="nav-back-arrow">←</span> Назад</div>
       <h2 class="section-title">AI‑Психолог Pro</h2>
       <p class="section-sub">
-        Твой личный ИИ‑помощник на основе моих методик, доступный 24/7 для поддержки в мыслях и состояниях.
+        Ваш личный ИИ‑помощник на основе моих методик, доступный 24/7 для поддержки в мыслях и состояниях.
       </p>
       <ul class="bullet-list">
-        <li>Предзапуск по специальной цене: {price_pro_today} ₽ в месяц.</li>
+        <li>Предзаказ по специальной цене: {price_pro_today} ₽ в месяц.</li>
         <li>После запуска цена вырастет до {price_pro_open} ₽ в месяц.</li>
         <li>Ответы, подсказки и упражнения в любое время дня.</li>
       </ul>
@@ -540,13 +580,14 @@ def _miniapp_html() -> str:
     </div>
 
     <div id="view-personal" class="view">
+      <div class="nav-back" onclick="showView('intro')"><span class="nav-back-arrow">←</span> Назад</div>
       <h2 class="section-title">Личная работа 1‑на‑1</h2>
       <p class="section-sub">
-        Индивидуальное сопровождение, где мы точечно работаем с твоим запросом и жизнью в целом.
+        Индивидуальное сопровождение, где мы точечно работаем с вашим запросом и жизнью в целом.
       </p>
 
       <div class="cards" style="margin-top:8px;">
-        <div class="card" onclick="selectPersonal('1m')">
+        <div class="card personal-card" data-personal="1m" onclick="selectPersonal('1m')">
           <div class="card-header">
             <div class="card-title">1 месяц плотной личной работы</div>
           </div>
@@ -560,7 +601,7 @@ def _miniapp_html() -> str:
           </ul>
         </div>
 
-        <div class="card" onclick="selectPersonal('2m')">
+        <div class="card personal-card" data-personal="2m" onclick="selectPersonal('2m')">
           <div class="card-header">
             <div class="card-title">2 месяца глубокой перестройки</div>
           </div>
@@ -574,7 +615,7 @@ def _miniapp_html() -> str:
           </ul>
         </div>
 
-        <div class="card" onclick="selectPersonal('4m')">
+        <div class="card personal-card" data-personal="4m" onclick="selectPersonal('4m')">
           <div class="card-header">
             <div class="card-title">4 месяца VIP‑сопровождения</div>
           </div>
@@ -638,6 +679,9 @@ def _miniapp_html() -> str:
 
     function selectPersonal(code) {{
       personalChoice = code;
+      document.querySelectorAll('.personal-card').forEach(function(el) {{
+        el.classList.toggle('selected', el.getAttribute('data-personal') === code);
+      }});
     }}
 
     function getQueryParam(name) {{
