@@ -18,7 +18,7 @@ import asyncio
 from collections import defaultdict
 from typing import Optional, Callable
 
-from robokassa_integration import PaymentsDB
+from robokassa_integration import PaymentsDB, _to_amount_str
 
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
