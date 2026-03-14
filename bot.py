@@ -213,6 +213,8 @@ STREAM_RESPONSE = True
 VOICE_ENABLED = True
 
 MINIAPP_URL_BASE = (os.getenv("MINIAPP_URL") or "").strip()
+# Файл с текущим URL мини-приложения (заполняется скриптом cloudflared quick tunnel). Приоритет над .env.
+MINIAPP_URL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "miniapp_url.txt")
 
 # Кнопки по шагам диалога: ключ = step_id из тега [STEP:step_id] в ответе модели.
 STEP_KEYBOARDS = {
@@ -456,8 +458,21 @@ def _readiness_label_and_callback(form_address: Optional[str]) -> tuple[str, str
     return "Хочу продолжить", "Хочу продолжить"
 
 
+def _get_miniapp_base() -> str:
+    """Базовый URL мини-приложения: сначала из файла miniapp_url.txt (от cloudflared), иначе из .env."""
+    try:
+        if os.path.isfile(MINIAPP_URL_FILE):
+            with open(MINIAPP_URL_FILE, "r", encoding="utf-8") as f:
+                line = (f.read() or "").strip().split("\n")[0].strip()
+                if line:
+                    return line
+    except Exception:
+        pass
+    return MINIAPP_URL_BASE or ""
+
+
 def _build_miniapp_url(chat_id: int, user_id: int) -> Optional[str]:
-    base = MINIAPP_URL_BASE
+    base = _get_miniapp_base()
     if not base:
         return None
     sep = "&" if "?" in base else "?"
@@ -465,16 +480,22 @@ def _build_miniapp_url(chat_id: int, user_id: int) -> Optional[str]:
 
 
 async def _send_miniapp_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отправляет пользователю ссылку на мини-приложение с выбором формата и оплатой."""
+    """Отправляет пользователю ссылку на мини-приложение с выбором формата и оплатой. При отсутствии URL — «Что-то пошло не так» + кнопка «Попробовать ещё раз»."""
     chat = update.effective_chat
     user = update.effective_user
     if not chat or not user:
         return
     url = _build_miniapp_url(chat.id, user.id)
     if not url:
+        kb_retry = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Попробовать ещё раз", callback_data="miniapp_retry")],
+        ])
         target = _get_reply_target(update)
         if target:
-            await target.reply_text("Сейчас мини-приложение недоступно. Попробуй позже.")
+            await target.reply_text(
+                "Что-то пошло не так. Попробуйте ещё раз.",
+                reply_markup=kb_retry,
+            )
         return
 
     # Telegram открывает Web App (встроенное окно) только по HTTPS. Для HTTP даём обычную ссылку — откроется в браузере.
@@ -749,6 +770,11 @@ async def handle_step_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Переход в мини-приложение после любого согласия «готов меняться».
     if user_text.strip().lower() in READINESS_CONSENT_TEXTS:
+        await _send_miniapp_entry(update, context)
+        return
+
+    # «Попробовать ещё раз» — повторно читаем URL из файла и показываем мини-приложение или снова ошибку с кнопкой.
+    if user_text == "miniapp_retry":
         await _send_miniapp_entry(update, context)
         return
 

@@ -1,4 +1,5 @@
 .env
+miniapp_url.txt
 bot.log
 __pycache__/
 *.pyc
