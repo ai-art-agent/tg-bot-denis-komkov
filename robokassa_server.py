@@ -267,17 +267,23 @@ def _miniapp_html() -> str:
       margin: 0;
       padding: 0;
       min-height: 100vh;
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #0b1220;
       color: var(--text);
     }}
     body {{
       padding: 12px 16px 24px;
+      box-sizing: border-box;
     }}
     .container {{
-      max-width: 480px;
+      max-width: min(480px, 100%);
+      width: 100%;
       margin: 0 auto;
       min-height: 100%;
+      box-sizing: border-box;
     }}
     .nav-back {{
       display: flex;
@@ -298,6 +304,9 @@ def _miniapp_html() -> str:
       grid-template-columns: 1fr 1fr;
       gap: 10px;
       margin-top: 10px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }}
     .cards.single-col {{
       grid-template-columns: 1fr;
@@ -310,6 +319,8 @@ def _miniapp_html() -> str:
       box-shadow: 0 8px 24px rgba(15,23,42,0.9);
       cursor: pointer;
       transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.12s;
+      min-width: 0;
+      overflow: hidden;
     }}
     .card.selected {{
       border-color: rgba(34,197,94,0.9);
@@ -440,8 +451,9 @@ def _miniapp_html() -> str:
     .bullet-list li {{
       margin-bottom: 2px;
     }}
+    /* Личная работа: 2 колонки (2+1), чтобы все три блока влезали по ширине без обрезки */
     #view-personal .cards {{
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
     }}
     #view-personal .card {{
