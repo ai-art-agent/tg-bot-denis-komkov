@@ -59,6 +59,8 @@ def test_4_handlers():
 def test_5_callback_length_and_format():
     import bot
     for step_id, rows in bot.STEP_KEYBOARDS.items():
+        if rows is None:
+            continue
         for row in rows:
             for label, cb in row:
                 data_len = len(cb.encode('utf-8'))
@@ -70,9 +72,9 @@ def test_5_callback_length_and_format():
 
 
 def test_6_new_step_buttons():
-    """Проверка новых кнопок: insight_next, readiness, products, pay_choice, webinar_offer."""
+    """Проверка кнопок: insight_next, readiness (продуктовые шаги убраны — только мини‑приложение)."""
     import bot
-    new_steps = ('insight_next', 'readiness', 'products', 'pay_choice', 'webinar_offer')
+    new_steps = ('insight_next', 'readiness')
     for step_id in new_steps:
         assert step_id in bot.STEP_KEYBOARDS, f'В STEP_KEYBOARDS нет {step_id}'
         clean, parsed = bot._parse_step_from_reply('Текст\n[STEP:' + step_id + ']')
@@ -91,7 +93,7 @@ def test_7_load_prompt_file():
     import bot
     assert len(bot.SYSTEM_PROMPT.strip()) > 500
     assert 'ОДИН ВОПРОС' in bot.SYSTEM_PROMPT
-    assert 'КНОПКИ ПО ШАГАМ' in bot.SYSTEM_PROMPT
+    assert 'КНОПКИ' in bot.SYSTEM_PROMPT
     return True
 
 

@@ -75,15 +75,23 @@ def _load_system_prompt() -> str:
         if not content:
             raise ValueError("Файл system_prompt.txt пуст.")
         content = content.replace(PLACEHOLDER_MAX_RESPONSE, str(MAX_RESPONSE_CHARS))
-        # Цены только из .env (для групповых: если нет STANDARD/VIP, берём PRICE_GROUP_RUB для обратной совместимости)
+        # Цены из .env (должны совпадать с robokassa_server.py и мини‑приложением)
         price_std = os.getenv("PRICE_GROUP_STANDARD_RUB") or os.getenv("PRICE_GROUP_RUB") or "24990"
         price_vip = os.getenv("PRICE_GROUP_VIP_RUB") or os.getenv("PRICE_GROUP_RUB") or "45990"
         price_webinar = os.getenv("PRICE_WEBINAR_RUB") or "2990"
         price_pro = os.getenv("PRICE_PRO_RUB") or "990"
+        price_pro_open = os.getenv("PRICE_PRO_OPEN_RUB") or "1990"
+        price_p1 = os.getenv("PRICE_PERSONAL_1M_RUB") or "120000"
+        price_p2 = os.getenv("PRICE_PERSONAL_2M_RUB") or "180000"
+        price_p4 = os.getenv("PRICE_PERSONAL_4M_RUB") or "300000"
         content = content.replace("{{PRICE_GROUP_STANDARD}}", _format_price_display(price_std))
         content = content.replace("{{PRICE_GROUP_VIP}}", _format_price_display(price_vip))
         content = content.replace("{{PRICE_WEBINAR}}", _format_price_display(price_webinar))
         content = content.replace("{{PRICE_PRO}}", _format_price_display(price_pro))
+        content = content.replace("{{PRICE_PRO_OPEN}}", _format_price_display(price_pro_open))
+        content = content.replace("{{PRICE_PERSONAL_1M}}", _format_price_display(price_p1))
+        content = content.replace("{{PRICE_PERSONAL_2M}}", _format_price_display(price_p2))
+        content = content.replace("{{PRICE_PERSONAL_4M}}", _format_price_display(price_p4))
         return content
     except FileNotFoundError:
         raise ValueError(
@@ -231,21 +239,7 @@ STEP_KEYBOARDS = {
     "insight_next": [
         [("Обсудить возможные пути", "Обсудить возможные пути")],
     ],
-    "readiness": None,  # строится в _keyboard_for_step по context.user_data["form_address"]
-    "products": [
-        [("Групповые занятия", "Групповые занятия"), ("Онлайн вебинар", "Онлайн вебинар")],
-        [("AI-Психолог Pro", "AI-Психолог Pro")],
-    ],
-    "vip": [
-        [("VIP", "VIP")],
-        [("Стандарт", "Стандарт")],
-    ],
-    "pay_choice": [
-        [("Еще думаю", "Еще думаю")],
-    ],
-    "webinar_offer": [
-        [("Онлайн вебинар", "Онлайн вебинар")],
-    ],
+    "readiness": None,  # строится в _keyboard_for_step (Хочу продолжить / Еще подумаю)
 }
 
 READINESS_CONSENT_TEXTS = {
@@ -332,8 +326,7 @@ PRODUCTS = {
 # Формат анкеты (outcome) — совпадает с system_prompt.txt. При сохранении анкет/БД клиентов
 # использовать те же ключи: readiness, product, tariff, preferred_contact_time, preferred_group_start.
 
-# Парсинг тега [STEP:step_id] или [STEP:step_id:product] в ответе модели. Ищем последнее вхождение.
-# Для pay_choice допускается [STEP:pay_choice:webinar] / [STEP:pay_choice:group_vip] и т.д., чтобы кнопка «Оплатить» вела на нужный продукт.
+# Парсинг тега [STEP:step_id] в ответе модели. Ищем последнее вхождение.
 STEP_TAG_REGEX = re.compile(r"\[STEP:\s*([\w:]+)\]", re.IGNORECASE)
 # Удаляем любой [STEP:xxx] из текста перед показом пользователю (тег служебный).
 STEP_TAG_ANYWHERE = re.compile(r"\s*\[STEP:\s*[\w:]+\]\s*", re.IGNORECASE)
@@ -530,17 +523,6 @@ def _keyboard_for_step(
         )
         rows = [[(label, callback), ("Еще подумаю", "Еще подумаю")]]
         return InlineKeyboardMarkup([[InlineKeyboardButton(str(btn_label), callback_data=str(btn_cb)) for btn_label, btn_cb in row] for row in rows])
-
-    if (step_id == "pay_choice" or step_id.startswith("pay_choice:")):
-        # Вся оплата происходит только внутри мини‑приложения.
-        # В чате оставляем только возможность «Еще думаю», без кнопки «Оплатить».
-        rows = [[("Еще думаю", "Еще думаю")]]
-        return InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton(str(label), callback_data=str(cb)) for label, cb in row]
-                for row in rows
-            ]
-        )
 
     rows = STEP_KEYBOARDS.get(step_id)
     if not rows:
@@ -742,26 +724,11 @@ async def handle_step_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not user_text:
         return
 
-    # Запоминаем форму обращения для обращения к пользователю; кнопка readiness — «Хочу продолжить».
+    # Запоминаем форму обращения для кнопки readiness.
     if user_text in ("Мужская форма обращения", "Женская форма обращения", "Нейтральная форма обращения"):
         context.user_data["form_address"] = user_text
 
-    # Запоминаем выбранный продукт, чтобы "Оплатить" мог выдать правильную ссылку.
-    if user_text in PRODUCT_BUTTON_TO_CODE:
-        context.user_data["selected_product"] = PRODUCT_BUTTON_TO_CODE[user_text]
-
-    # При выборе групповых занятий запоминаем тариф (VIP / Стандарт).
-    # Если продукт ещё не был выбран кнопкой (например, написали текстом), считаем, что это групповые — иначе кнопки VIP/Стандарт не показываются.
-    if user_text == "VIP":
-        context.user_data["group_tariff"] = "vip"
-        if context.user_data.get("selected_product") is None:
-            context.user_data["selected_product"] = "group"
-    elif user_text == "Стандарт":
-        context.user_data["group_tariff"] = "standard"
-        if context.user_data.get("selected_product") is None:
-            context.user_data["selected_product"] = "group"
-
-    # Переход в мини-приложение после любого согласия «готов меняться».
+    # Переход в мини-приложение после «Хочу продолжить» или согласия текстом.
     if user_text.strip().lower() in READINESS_CONSENT_TEXTS:
         await _send_miniapp_entry(update, context)
         return

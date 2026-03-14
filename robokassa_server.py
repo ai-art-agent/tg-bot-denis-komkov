@@ -83,6 +83,7 @@ PRICE_GROUP_STANDARD_RUB = _amount_from_env("PRICE_GROUP_STANDARD_RUB", os.geten
 PRICE_GROUP_VIP_RUB = _amount_from_env("PRICE_GROUP_VIP_RUB", os.getenv("PRICE_GROUP_RUB", "45990"))
 PRICE_WEBINAR_RUB = _amount_from_env("PRICE_WEBINAR_RUB", "2990")
 PRICE_PRO_RUB = _amount_from_env("PRICE_PRO_RUB", "990")
+PRICE_PRO_OPEN_RUB = _amount_from_env("PRICE_PRO_OPEN_RUB", "1990")
 PRICE_PERSONAL_1M_RUB = _amount_from_env("PRICE_PERSONAL_1M_RUB", "120000")
 PRICE_PERSONAL_2M_RUB = _amount_from_env("PRICE_PERSONAL_2M_RUB", "180000")
 PRICE_PERSONAL_4M_RUB = _amount_from_env("PRICE_PERSONAL_4M_RUB", "300000")
@@ -239,7 +240,7 @@ def _miniapp_html() -> str:
     price_group_vip_open = "54 990"
     price_webinar = fmt(PRICE_WEBINAR_RUB)
     price_pro_today = fmt(PRICE_PRO_RUB)
-    price_pro_open = "1 990"
+    price_pro_open = fmt(PRICE_PRO_OPEN_RUB)
     price_p1 = fmt(PRICE_PERSONAL_1M_RUB)
     price_p2 = fmt(PRICE_PERSONAL_2M_RUB)
     price_p4 = fmt(PRICE_PERSONAL_4M_RUB)
