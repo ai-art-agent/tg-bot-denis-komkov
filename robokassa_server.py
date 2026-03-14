@@ -446,8 +446,8 @@ def _miniapp_html() -> str:
     #view-personal .card {{
       padding: 8px;
     }}
-    #view-personal .card-title { font-size: 0.75rem; }
-    #view-personal .price-main { font-size: 0.82rem; }
+    #view-personal .card-title {{ font-size: 0.75rem; }}
+    #view-personal .price-main {{ font-size: 0.82rem; }}
   </style>
 </head>
 <body>
