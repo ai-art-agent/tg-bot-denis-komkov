@@ -322,6 +322,13 @@ def _miniapp_html() -> str:
       min-width: 0;
       overflow: hidden;
     }}
+    #view-intro .card {{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }}
     .card.selected {{
       border-color: rgba(34,197,94,0.9);
       box-shadow: 0 0 0 2px rgba(34,197,94,0.35);
@@ -340,14 +347,33 @@ def _miniapp_html() -> str:
     }}
     #view-intro .card-header {{
       flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
     }}
     #view-intro .card-title {{
       width: 100%;
       margin-bottom: 4px;
+      text-align: center;
     }}
     #view-intro .card-badge-row {{
       width: 100%;
       margin-bottom: 4px;
+      display: flex;
+      justify-content: center;
+    }}
+    #view-intro .price-row {{
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }}
+    #view-intro .price-main {{
+      display: block;
+    }}
+    #view-intro .price-old {{
+      display: block;
+    }}
+    #view-intro .pill {{
+      text-transform: lowercase;
     }}
     .card-title {{
       font-size: 0.82rem;
@@ -491,17 +517,17 @@ def _miniapp_html() -> str:
           </div>
           <div class="card-badge-row"><span class="badge badge-accent">4 недели</span></div>
           <div class="price-row">
-            <span class="price-main">{price_group_std} ₽ · Стандарт</span>
+            <span class="price-main">от {price_group_std} ₽</span>
             <span class="price-old">{price_group_std_open} ₽</span>
           </div>
-          <div class="pill">VIP с личными сессиями</div>
+          <div class="pill">доступен VIP</div>
         </div>
 
         <div class="card" onclick="openProduct('webinar')">
           <div class="card-header">
             <div class="card-title">Онлайн вебинар</div>
           </div>
-          <div class="card-badge-row"><span class="badge">Стартовый шаг</span></div>
+          <div class="card-badge-row"><span class="badge badge-accent">Стартовый шаг</span></div>
           <div class="price-row">
             <span class="price-main">{price_webinar} ₽</span>
           </div>
@@ -511,19 +537,19 @@ def _miniapp_html() -> str:
           <div class="card-header">
             <div class="card-title">AI‑Психолог Pro</div>
           </div>
-          <div class="card-badge-row"><span class="badge badge-accent">−50% до запуска</span></div>
+          <div class="card-badge-row"><span class="badge badge-accent">24/7 онлайн</span></div>
           <div class="price-row">
-            <span class="price-main">{price_pro_today} ₽ / мес</span>
-            <span class="price-old">{price_pro_open} ₽ / мес</span>
+            <span class="price-main">{price_pro_today} ₽ в месяц</span>
+            <span class="price-old">{price_pro_open} ₽ в месяц</span>
           </div>
-          <div class="pill">Предзаказ по сниженной цене</div>
+          <div class="pill">предзаказ по сниженной цене</div>
         </div>
 
         <div class="card" onclick="openProduct('personal')">
           <div class="card-header">
-            <div class="card-title">Личная работа 1‑на‑1</div>
+            <div class="card-title">Личная работа</div>
           </div>
-          <div class="card-badge-row"><span class="badge">1‑на‑1</span></div>
+          <div class="card-badge-row"><span class="badge badge-accent">1‑на‑1</span></div>
           <div class="price-row">
             <span class="price-main">от {price_p1} ₽</span>
           </div>
