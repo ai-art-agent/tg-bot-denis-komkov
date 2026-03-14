@@ -2,7 +2,32 @@
 $ErrorActionPreference = "Continue"
 $keyPath = Join-Path $env:USERPROFILE ".ssh\id_ed25519_yandex"
 $hostUser = "enhel-method@158.160.169.204"
-$remoteCmd = "cd ~/tg-ai-denis-komkov && git pull && venv/bin/pip install -r requirements.txt && sudo cp deploy/tg-ai-denis-komkov.service /etc/systemd/system/ 2>/dev/null; sudo cp deploy/robokassa-server.service /etc/systemd/system/ 2>/dev/null; sudo systemctl daemon-reload && sudo systemctl restart tg-ai-denis-komkov && (sudo systemctl restart robokassa-server 2>/dev/null || true) && echo '' && echo '--- Service status (bot Denis) ---' && sudo systemctl status tg-ai-denis-komkov --no-pager && echo '' && echo '--- Robokassa service (if present) ---' && (sudo systemctl status robokassa-server --no-pager 2>/dev/null || echo 'robokassa-server not configured')"
+$remoteCmd = @"
+cd ~/tg-ai-denis-komkov \
+ && git pull \
+ && venv/bin/pip install -r requirements.txt \
+ && sudo cp deploy/tg-ai-denis-komkov.service /etc/systemd/system/ 2>/dev/null \
+ && sudo cp deploy/robokassa-server.service /etc/systemd/system/ 2>/dev/null \
+ && sudo cp deploy/robokassa-server-denis.service /etc/systemd/system/ 2>/dev/null \
+ && sudo cp deploy/cloudflared-quick.service /etc/systemd/system/ 2>/dev/null \
+ && sudo systemctl daemon-reload \
+ && sudo systemctl restart tg-ai-denis-komkov \
+ && (sudo systemctl restart robokassa-server 2>/dev/null || true) \
+ && (sudo systemctl restart robokassa-server-denis 2>/dev/null || true) \
+ && (sudo systemctl restart cloudflared-quick 2>/dev/null || true) \
+ && echo '' \
+ && echo '--- Service status (bot Denis) ---' \
+ && sudo systemctl status tg-ai-denis-komkov --no-pager \
+ && echo '' \
+ && echo '--- Robokassa service (Enhel, if present) ---' \
+ && (sudo systemctl status robokassa-server --no-pager 2>/dev/null || echo 'robokassa-server not configured') \
+ && echo '' \
+ && echo '--- Robokassa service (Denis, if present) ---' \
+ && (sudo systemctl status robokassa-server-denis --no-pager 2>/dev/null || echo 'robokassa-server-denis not configured') \
+ && echo '' \
+ && echo '--- Cloudflared quick tunnel (if present) ---' \
+ && (sudo systemctl status cloudflared-quick --no-pager 2>/dev/null || echo 'cloudflared-quick not configured')
+"@
 
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "  Window 2: VM - git pull and restart" -ForegroundColor Cyan

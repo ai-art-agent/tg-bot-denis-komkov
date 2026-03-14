@@ -18,12 +18,7 @@ import asyncio
 from collections import defaultdict
 from typing import Optional, Callable
 
-from robokassa_integration import (
-    PaymentsDB,
-    RobokassaConfig,
-    build_payment_url,
-    _to_amount_str,
-)
+from robokassa_integration import PaymentsDB
 
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
@@ -246,7 +241,7 @@ STEP_KEYBOARDS = {
         [("Стандарт", "Стандарт")],
     ],
     "pay_choice": [
-        [("Оплатить", "Оплатить"), ("Еще думаю", "Еще думаю")],
+        [("Еще думаю", "Еще думаю")],
     ],
     "webinar_offer": [
         [("Онлайн вебинар", "Онлайн вебинар")],
@@ -536,18 +531,16 @@ def _keyboard_for_step(
         rows = [[(label, callback), ("Еще подумаю", "Еще подумаю")]]
         return InlineKeyboardMarkup([[InlineKeyboardButton(str(btn_label), callback_data=str(btn_cb)) for btn_label, btn_cb in row] for row in rows])
 
-    if (step_id == "pay_choice" or step_id.startswith("pay_choice:")) and context:
-        product_code = context.user_data.get("selected_product")
-        # Явный продукт в теге: [STEP:pay_choice:webinar] или [STEP:pay_choice:group_vip] — приоритет над context
-        if ":" in step_id:
-            parts = step_id.split(":", 1)
-            if len(parts) == 2 and parts[1] in PRODUCTS:
-                product_code = parts[1]
-        if product_code == "group":
-            product_code = "group_vip" if context.user_data.get("group_tariff") == "vip" else "group_standard"
-        if product_code and product_code in PRODUCTS:
-            rows = [[("Оплатить", f"pay:{product_code}")], [("Еще думаю", "Еще думаю")]]
-            return InlineKeyboardMarkup([[InlineKeyboardButton(str(l), callback_data=str(c)) for l, c in row] for row in rows])
+    if (step_id == "pay_choice" or step_id.startswith("pay_choice:")):
+        # Вся оплата происходит только внутри мини‑приложения.
+        # В чате оставляем только возможность «Еще думаю», без кнопки «Оплатить».
+        rows = [[("Еще думаю", "Еще думаю")]]
+        return InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton(str(label), callback_data=str(cb)) for label, cb in row]
+                for row in rows
+            ]
+        )
 
     rows = STEP_KEYBOARDS.get(step_id)
     if not rows:
@@ -778,16 +771,6 @@ async def handle_step_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await _send_miniapp_entry(update, context)
         return
 
-    # Специальная обработка оплаты (не отправляем это в модель).
-    if user_text.lower() == "оплатить":
-        await send_payment_link(update, context)
-        return
-    if user_text.startswith("pay:") and len(user_text) > 4:
-        product_code = user_text[4:].strip()
-        if product_code in PRODUCTS:
-            await send_payment_link(update, context, product_code_override=product_code)
-            return
-
     # «Еще думаю» — сохраняем анкету из контекста, затем запрашиваем у модели полный JSON и сохраняем в clients.
     if user_text == "Еще думаю":
         _save_anket_after_refusal(update, context)
@@ -799,86 +782,6 @@ async def handle_step_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             logging.exception("Еще думаю: сохранение полной анкеты из модели: %s", e)
 
     await _reply_to_user(update, context, user_id, user_text)
-
-
-async def send_payment_link(update: Update, context: ContextTypes.DEFAULT_TYPE, product_code_override: Optional[str] = None) -> None:
-    """
-    Генерирует ссылку Robokassa и отправляет пользователю.
-    product_code_override: если задан, используется вместо context.user_data (кнопка «Оплатить» с callback pay:КОД).
-    """
-    query = update.callback_query
-    chat = update.effective_chat
-    user = update.effective_user
-    if not chat or not user:
-        return
-
-    product_code = product_code_override or context.user_data.get("selected_product")
-    if not product_code or product_code not in PRODUCTS:
-        await query.edit_message_text("Сначала выбери продукт, потом нажми «Оплатить».")
-        return
-    if not product_code_override and product_code == "group":
-        product_code = "group_vip" if context.user_data.get("group_tariff") == "vip" else "group_standard"
-    if product_code not in PRODUCTS:
-        await query.edit_message_text("Сначала выбери тариф (VIP или Стандарт) для групповых занятий.")
-        return
-
-    try:
-        cfg = RobokassaConfig.from_env()
-        db = _get_payments_db()
-    except Exception as e:
-        # #region agent log
-        try:
-            _log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug-f3456b.log")
-            with open(_log_path, "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({"sessionId": "f3456b", "hypothesisId": "payment_error", "location": "bot.py:send_payment_link", "message": "Robokassa config/db error", "data": {"type": e.__class__.__name__, "msg": str(e)}, "timestamp": int(time.time() * 1000)}) + "\n")
-        except Exception:
-            pass
-        # #endregion
-        logging.exception("Robokassa config/db error: %s", e)
-        await query.edit_message_text("Оплата временно недоступна. Попробуй позже.")
-        return
-
-    product = PRODUCTS[product_code]
-    amount = str(product["amount"])
-    description = str(product["description"])
-
-    # Перед созданием заказа сохраняем полную анкету из диалога (для уведомления после оплаты).
-    try:
-        messages = get_history_messages(user.id) + [{"role": "user", "content": "SHOW_JSON"}]
-        reply_raw = await _generate_reply(messages, stream=False)
-        _save_anket_from_show_json(update, reply_raw, db=db)
-    except Exception as e:
-        logging.exception("Оплата: сохранение полной анкеты перед заказом: %s", e)
-
-    inv_id, token = db.create_order(
-        user_id=int(user.id),
-        chat_id=int(chat.id),
-        product_code=str(product_code),
-        amount=amount,
-        description=description,
-    )
-
-    shp = {
-        "Shp_user_id": str(user.id),
-        "Shp_chat_id": str(chat.id),
-        "Shp_product": str(product_code),
-        "Shp_order_token": token,
-    }
-
-    pay_url = build_payment_url(
-        cfg=cfg,
-        inv_id=inv_id,
-        out_sum=amount,
-        description=description,
-        shp=shp,
-    )
-
-    kb = InlineKeyboardMarkup([[InlineKeyboardButton("Перейти к оплате", url=pay_url)]])
-    await query.edit_message_text(
-        "Ссылка для оплаты — под кнопкой ниже. После оплаты будет направлена вся необходимая информация.",
-        reply_markup=kb,
-        disable_web_page_preview=True,
-    )
 
 
 async def _generate_reply(msgs: list[dict], stream: bool = False, on_chunk: Optional[Callable[[str], None]] = None) -> str:
