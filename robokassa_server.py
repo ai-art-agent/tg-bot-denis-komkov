@@ -338,6 +338,17 @@ def _miniapp_html() -> str:
       gap: 6px;
       margin-bottom: 4px;
     }}
+    #view-intro .card-header {{
+      flex-wrap: wrap;
+    }}
+    #view-intro .card-title {{
+      width: 100%;
+      margin-bottom: 4px;
+    }}
+    #view-intro .card-badge-row {{
+      width: 100%;
+      margin-bottom: 4px;
+    }}
     .card-title {{
       font-size: 0.82rem;
       font-weight: 600;
@@ -380,6 +391,9 @@ def _miniapp_html() -> str:
       color: var(--muted);
       line-height: 1.3;
       margin: 0;
+    }}
+    #view-intro .card-desc {{
+      display: none;
     }}
     .pill {{
       display: inline-flex;
@@ -474,57 +488,45 @@ def _miniapp_html() -> str:
         <div class="card" onclick="openProduct('group')">
           <div class="card-header">
             <div class="card-title">Групповые занятия</div>
-            <span class="badge badge-accent">Глубинная работа 4 недели</span>
           </div>
+          <div class="card-badge-row"><span class="badge badge-accent">4 недели</span></div>
           <div class="price-row">
             <span class="price-main">{price_group_std} ₽ · Стандарт</span>
             <span class="price-old">{price_group_std_open} ₽</span>
           </div>
-          <p class="card-desc">
-            Небольшая группа, живая поддержка Дениса и участников, пошаговое сопровождение.
-          </p>
-          <div class="pill">Есть VIP-формат с личными сессиями</div>
+          <div class="pill">VIP с личными сессиями</div>
         </div>
 
         <div class="card" onclick="openProduct('webinar')">
           <div class="card-header">
             <div class="card-title">Онлайн вебинар</div>
-            <span class="badge">Стартовый шаг</span>
           </div>
+          <div class="card-badge-row"><span class="badge">Стартовый шаг</span></div>
           <div class="price-row">
             <span class="price-main">{price_webinar} ₽</span>
           </div>
-          <p class="card-desc">
-            Интенсив до 1,5 часов для самостоятельной проработки важной темы.
-          </p>
         </div>
 
         <div class="card" onclick="openProduct('pro')">
           <div class="card-header">
             <div class="card-title">AI‑Психолог Pro</div>
-            <span class="badge badge-accent">Предзаказ</span>
           </div>
+          <div class="card-badge-row"><span class="badge badge-accent">−50% до запуска</span></div>
           <div class="price-row">
             <span class="price-main">{price_pro_today} ₽ / мес</span>
             <span class="price-old">{price_pro_open} ₽ / мес</span>
           </div>
-          <p class="card-desc">
-            Личный ИИ‑помощник на основе моих методик, доступный 24/7.
-          </p>
-          <div class="pill">Сейчас действует предзаказ по сниженной цене</div>
+          <div class="pill">Предзаказ по сниженной цене</div>
         </div>
 
         <div class="card" onclick="openProduct('personal')">
           <div class="card-header">
             <div class="card-title">Личная работа 1‑на‑1</div>
-            <span class="badge">Глубокий индивидуальный формат</span>
           </div>
+          <div class="card-badge-row"><span class="badge">1‑на‑1</span></div>
           <div class="price-row">
             <span class="price-main">от {price_p1} ₽</span>
           </div>
-          <p class="card-desc">
-            Индивидуальное сопровождение по ключевым запросам, сессии по 3–4 часа и плотный контакт.
-          </p>
         </div>
       </div>
     </div>
