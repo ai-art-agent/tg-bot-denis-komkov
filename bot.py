@@ -78,7 +78,7 @@ def _load_system_prompt() -> str:
         # Цены из .env (должны совпадать с robokassa_server.py и мини‑приложением)
         price_std = os.getenv("PRICE_GROUP_STANDARD_RUB") or os.getenv("PRICE_GROUP_RUB") or "24990"
         price_vip = os.getenv("PRICE_GROUP_VIP_RUB") or os.getenv("PRICE_GROUP_RUB") or "45990"
-        price_webinar = os.getenv("PRICE_WEBINAR_RUB") or "2990"
+        price_diagnostic = os.getenv("PRICE_DIAGNOSTIC_RUB") or os.getenv("PRICE_WEBINAR_RUB") or "3000"
         price_pro = os.getenv("PRICE_PRO_RUB") or "990"
         price_pro_open = os.getenv("PRICE_PRO_OPEN_RUB") or "1990"
         bonus_referral = os.getenv("BONUS_REFERRAL_RUB") or "5000"
@@ -89,7 +89,7 @@ def _load_system_prompt() -> str:
         price_p5_private12 = os.getenv("PRICE_PERSONAL_12M_PRIVATE_RUB") or "700000"
         content = content.replace("{{PRICE_GROUP_STANDARD}}", _format_price_display(price_std))
         content = content.replace("{{PRICE_GROUP_VIP}}", _format_price_display(price_vip))
-        content = content.replace("{{PRICE_WEBINAR}}", _format_price_display(price_webinar))
+        content = content.replace("{{PRICE_DIAGNOSTIC}}", _format_price_display(price_diagnostic))
         content = content.replace("{{PRICE_PRO}}", _format_price_display(price_pro))
         content = content.replace("{{PRICE_PRO_OPEN}}", _format_price_display(price_pro_open))
         content = content.replace("{{BONUS_REFERRAL_RUB}}", _format_price_display(bonus_referral))
@@ -292,7 +292,7 @@ INSIGHT_FEEDBACK_PHRASES = (
 # Кнопки продуктов (callback_data) -> внутренний код продукта для платежей
 PRODUCT_BUTTON_TO_CODE = {
     "Групповые занятия": "group",
-    "Онлайн вебинар": "webinar",
+    "Диагностическая консультация": "webinar",
     "AI-Психолог Pro": "pro",
 }
 
@@ -307,7 +307,7 @@ def _amount_from_env(name: str, default: str) -> str:
 # Цены только из .env. Для групповых: если нет PRICE_GROUP_STANDARD_RUB/PRICE_GROUP_VIP_RUB, берётся PRICE_GROUP_RUB (обратная совместимость со старым .env на ВМ).
 PRICE_GROUP_STANDARD_RUB = _amount_from_env("PRICE_GROUP_STANDARD_RUB", os.getenv("PRICE_GROUP_RUB", "24990"))
 PRICE_GROUP_VIP_RUB = _amount_from_env("PRICE_GROUP_VIP_RUB", os.getenv("PRICE_GROUP_RUB", "45990"))
-PRICE_WEBINAR_RUB = _amount_from_env("PRICE_WEBINAR_RUB", "2990")
+PRICE_DIAGNOSTIC_RUB = _amount_from_env("PRICE_DIAGNOSTIC_RUB", os.getenv("PRICE_WEBINAR_RUB", "3000"))
 PRICE_PRO_RUB = _amount_from_env("PRICE_PRO_RUB", "990")
 
 PRODUCTS = {
@@ -320,8 +320,8 @@ PRODUCTS = {
         "description": "Оплата: Групповые занятия (VIP)",
     },
     "webinar": {
-        "amount": PRICE_WEBINAR_RUB,
-        "description": "Оплата: Онлайн вебинар",
+        "amount": PRICE_DIAGNOSTIC_RUB,
+        "description": "Оплата: Диагностическая консультация (1 час)",
     },
     "pro": {
         "amount": PRICE_PRO_RUB,

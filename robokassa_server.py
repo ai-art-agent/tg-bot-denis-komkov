@@ -81,7 +81,7 @@ def _amount_from_env(name: str, default: str) -> str:
 # Цены из .env (аналогично bot.py)
 PRICE_GROUP_STANDARD_RUB = _amount_from_env("PRICE_GROUP_STANDARD_RUB", os.getenv("PRICE_GROUP_RUB", "24990"))
 PRICE_GROUP_VIP_RUB = _amount_from_env("PRICE_GROUP_VIP_RUB", os.getenv("PRICE_GROUP_RUB", "45990"))
-PRICE_WEBINAR_RUB = _amount_from_env("PRICE_WEBINAR_RUB", "2990")
+PRICE_DIAGNOSTIC_RUB = _amount_from_env("PRICE_DIAGNOSTIC_RUB", os.getenv("PRICE_WEBINAR_RUB", "3000"))
 PRICE_PRO_RUB = _amount_from_env("PRICE_PRO_RUB", "990")
 PRICE_PRO_OPEN_RUB = _amount_from_env("PRICE_PRO_OPEN_RUB", "1990")
 PRICE_PERSONAL_1M_BASIC_RUB = _amount_from_env(
@@ -102,8 +102,8 @@ PRODUCTS = {
         "description": "Оплата: Групповые занятия (VIP)",
     },
     "webinar": {
-        "amount": PRICE_WEBINAR_RUB,
-        "description": "Оплата: Онлайн вебинар",
+        "amount": PRICE_DIAGNOSTIC_RUB,
+        "description": "Оплата: Диагностическая консультация (1 час)",
     },
     "pro": {
         "amount": PRICE_PRO_RUB,
@@ -250,7 +250,7 @@ def _miniapp_html() -> str:
     price_group_std_open = "29 990"
     price_group_vip = fmt(PRICE_GROUP_VIP_RUB)
     price_group_vip_open = "54 990"
-    price_webinar = fmt(PRICE_WEBINAR_RUB)
+    price_diagnostic = fmt(PRICE_DIAGNOSTIC_RUB)
     price_pro_today = fmt(PRICE_PRO_RUB)
     price_pro_open = fmt(PRICE_PRO_OPEN_RUB)
     price_p1_basic = fmt(PRICE_PERSONAL_1M_BASIC_RUB)
@@ -539,11 +539,11 @@ def _miniapp_html() -> str:
 
         <div class="card" onclick="openProduct('webinar')">
           <div class="card-header">
-            <div class="card-title">Онлайн вебинар</div>
+            <div class="card-title">Диагностическая консультация</div>
           </div>
-          <div class="card-badge-row"><span class="badge badge-accent">Стартовый шаг</span></div>
+          <div class="card-badge-row"><span class="badge badge-accent">1 час</span></div>
           <div class="price-row">
-            <span class="price-main">{price_webinar} ₽</span>
+            <span class="price-main">{price_diagnostic} ₽</span>
           </div>
         </div>
 
@@ -599,17 +599,17 @@ def _miniapp_html() -> str:
 
     <div id="view-webinar" class="view">
       <div class="nav-back" onclick="showView('intro')"><span class="nav-back-arrow">←</span> Назад</div>
-      <h2 class="section-title">Онлайн вебинар</h2>
+      <h2 class="section-title">Диагностическая консультация</h2>
       <p class="section-sub">
-        Интенсив до 1,5 часов для самостоятельной проработки состояния и понимания причин.
+        Если не понимаете, почему повторяются одни и те же ситуации, за 1 час внесём ясность и определим старт изменений.
       </p>
       <ul class="bullet-list">
-        <li>Запись, к которой можно возвращаться в своём темпе.</li>
-        <li>Практики и упражнения, которые можно сразу применять.</li>
-        <li>Хороший шаг, если пока не готов к глубокой работе.</li>
+        <li>Разбор вашей текущей ситуации.</li>
+        <li>Понимание возможных причин.</li>
+        <li>Первый вектор дальнейших действий.</li>
       </ul>
       <div class="price-row" style="margin-top:8px;">
-        <span class="price-main">{price_webinar} ₽</span>
+        <span class="price-main">{price_diagnostic} ₽ / 1 час</span>
       </div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="onThink('webinar')">Еще подумаю</button>

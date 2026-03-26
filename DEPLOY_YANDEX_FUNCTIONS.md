@@ -172,7 +172,7 @@ Webhook в Telegram менять не нужно — URL остаётся тем
    - `deploy.handler_robokassa.handler_fail`
 4. В переменных окружения добавьте Robokassa-настройки (см. `.env.example`):
    - `ROBOKASSA_MERCHANT_LOGIN`, `ROBOKASSA_PASSWORD1`, `ROBOKASSA_PASSWORD2`
-   - ссылки доступа: `WEBINAR_ACCESS_URL`, `GROUP_COURSE_ACCESS_URL`, `PRO_BOT_URL`
+   - ссылки доступа: `DIAGNOSTIC_CONSULT_ACCESS_URL`, `GROUP_COURSE_ACCESS_URL`, `PRO_BOT_URL`
 
 ### Что настроить в личном кабинете Robokassa
 
