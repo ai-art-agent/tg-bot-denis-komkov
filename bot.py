@@ -81,17 +81,23 @@ def _load_system_prompt() -> str:
         price_webinar = os.getenv("PRICE_WEBINAR_RUB") or "2990"
         price_pro = os.getenv("PRICE_PRO_RUB") or "990"
         price_pro_open = os.getenv("PRICE_PRO_OPEN_RUB") or "1990"
-        price_p1 = os.getenv("PRICE_PERSONAL_1M_RUB") or "120000"
-        price_p2 = os.getenv("PRICE_PERSONAL_2M_RUB") or "180000"
-        price_p4 = os.getenv("PRICE_PERSONAL_4M_RUB") or "300000"
+        bonus_referral = os.getenv("BONUS_REFERRAL_RUB") or "5000"
+        price_p1_basic = os.getenv("PRICE_PERSONAL_1M_BASIC_RUB") or os.getenv("PRICE_PERSONAL_1M_RUB") or "60000"
+        price_p1_plus = os.getenv("PRICE_PERSONAL_1M_PLUS_RUB") or "80000"
+        price_p2 = os.getenv("PRICE_PERSONAL_2M_RUB") or "100000"
+        price_p2_plus = os.getenv("PRICE_PERSONAL_2M_PLUS_RUB") or "130000"
+        price_p5_private12 = os.getenv("PRICE_PERSONAL_12M_PRIVATE_RUB") or "700000"
         content = content.replace("{{PRICE_GROUP_STANDARD}}", _format_price_display(price_std))
         content = content.replace("{{PRICE_GROUP_VIP}}", _format_price_display(price_vip))
         content = content.replace("{{PRICE_WEBINAR}}", _format_price_display(price_webinar))
         content = content.replace("{{PRICE_PRO}}", _format_price_display(price_pro))
         content = content.replace("{{PRICE_PRO_OPEN}}", _format_price_display(price_pro_open))
-        content = content.replace("{{PRICE_PERSONAL_1M}}", _format_price_display(price_p1))
+        content = content.replace("{{BONUS_REFERRAL_RUB}}", _format_price_display(bonus_referral))
+        content = content.replace("{{PRICE_PERSONAL_1M_BASIC}}", _format_price_display(price_p1_basic))
+        content = content.replace("{{PRICE_PERSONAL_1M_PLUS}}", _format_price_display(price_p1_plus))
         content = content.replace("{{PRICE_PERSONAL_2M}}", _format_price_display(price_p2))
-        content = content.replace("{{PRICE_PERSONAL_4M}}", _format_price_display(price_p4))
+        content = content.replace("{{PRICE_PERSONAL_2M_PLUS}}", _format_price_display(price_p2_plus))
+        content = content.replace("{{PRICE_PERSONAL_12M_PRIVATE}}", _format_price_display(price_p5_private12))
         return content
     except FileNotFoundError:
         raise ValueError(

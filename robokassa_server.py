@@ -84,9 +84,13 @@ PRICE_GROUP_VIP_RUB = _amount_from_env("PRICE_GROUP_VIP_RUB", os.getenv("PRICE_G
 PRICE_WEBINAR_RUB = _amount_from_env("PRICE_WEBINAR_RUB", "2990")
 PRICE_PRO_RUB = _amount_from_env("PRICE_PRO_RUB", "990")
 PRICE_PRO_OPEN_RUB = _amount_from_env("PRICE_PRO_OPEN_RUB", "1990")
-PRICE_PERSONAL_1M_RUB = _amount_from_env("PRICE_PERSONAL_1M_RUB", "120000")
-PRICE_PERSONAL_2M_RUB = _amount_from_env("PRICE_PERSONAL_2M_RUB", "180000")
-PRICE_PERSONAL_4M_RUB = _amount_from_env("PRICE_PERSONAL_4M_RUB", "300000")
+PRICE_PERSONAL_1M_BASIC_RUB = _amount_from_env(
+    "PRICE_PERSONAL_1M_BASIC_RUB", os.getenv("PRICE_PERSONAL_1M_RUB", "60000")
+)
+PRICE_PERSONAL_1M_PLUS_RUB = _amount_from_env("PRICE_PERSONAL_1M_PLUS_RUB", "80000")
+PRICE_PERSONAL_2M_RUB = _amount_from_env("PRICE_PERSONAL_2M_RUB", "100000")
+PRICE_PERSONAL_2M_PLUS_RUB = _amount_from_env("PRICE_PERSONAL_2M_PLUS_RUB", "130000")
+PRICE_PERSONAL_12M_PRIVATE_RUB = _amount_from_env("PRICE_PERSONAL_12M_PRIVATE_RUB", "700000")
 
 PRODUCTS = {
     "group_standard": {
@@ -105,17 +109,25 @@ PRODUCTS = {
         "amount": PRICE_PRO_RUB,
         "description": "Оплата: AI-Психолог Pro (месяц, предзаказ)",
     },
-    "personal_1m": {
-        "amount": PRICE_PERSONAL_1M_RUB,
-        "description": "Оплата: Личная работа 1 месяц",
+    "personal_1m_basic": {
+        "amount": PRICE_PERSONAL_1M_BASIC_RUB,
+        "description": "Оплата: Личная работа 1 месяц (Формат 1, базовый)",
+    },
+    "personal_1m_plus": {
+        "amount": PRICE_PERSONAL_1M_PLUS_RUB,
+        "description": "Оплата: Личная работа 1 месяц (Формат 2, базовый + сопровождение)",
     },
     "personal_2m": {
         "amount": PRICE_PERSONAL_2M_RUB,
-        "description": "Оплата: Личная работа 2 месяца",
+        "description": "Оплата: Личная работа 2 месяца (Формат 3, интенсив)",
     },
-    "personal_4m": {
-        "amount": PRICE_PERSONAL_4M_RUB,
-        "description": "Оплата: Личная работа 4 месяца",
+    "personal_2m_plus": {
+        "amount": PRICE_PERSONAL_2M_PLUS_RUB,
+        "description": "Оплата: Личная работа 2 месяца (Формат 4, интенсив + сопровождение)",
+    },
+    "personal_12m_private": {
+        "amount": PRICE_PERSONAL_12M_PRIVATE_RUB,
+        "description": "Оплата: Личная работа 12 месяцев (Формат 5, Private)",
     },
 }
 
@@ -241,9 +253,11 @@ def _miniapp_html() -> str:
     price_webinar = fmt(PRICE_WEBINAR_RUB)
     price_pro_today = fmt(PRICE_PRO_RUB)
     price_pro_open = fmt(PRICE_PRO_OPEN_RUB)
-    price_p1 = fmt(PRICE_PERSONAL_1M_RUB)
+    price_p1_basic = fmt(PRICE_PERSONAL_1M_BASIC_RUB)
+    price_p1_plus = fmt(PRICE_PERSONAL_1M_PLUS_RUB)
     price_p2 = fmt(PRICE_PERSONAL_2M_RUB)
-    price_p4 = fmt(PRICE_PERSONAL_4M_RUB)
+    price_p2_plus = fmt(PRICE_PERSONAL_2M_PLUS_RUB)
+    price_p5_private = fmt(PRICE_PERSONAL_12M_PRIVATE_RUB)
 
     return f"""<!DOCTYPE html>
 <html lang="ru">
@@ -551,7 +565,7 @@ def _miniapp_html() -> str:
           </div>
           <div class="card-badge-row"><span class="badge badge-accent">1‑на‑1</span></div>
           <div class="price-row">
-            <span class="price-main">от {price_p1} ₽</span>
+            <span class="price-main">от {price_p1_basic} ₽</span>
           </div>
         </div>
       </div>
@@ -628,45 +642,73 @@ def _miniapp_html() -> str:
       </p>
 
       <div class="cards" style="margin-top:8px;">
-        <div class="card personal-card" data-personal="1m" onclick="selectPersonal('1m')">
+        <div class="card personal-card" data-personal="personal_1m_basic" onclick="selectPersonal('personal_1m_basic')">
           <div class="card-header">
-            <div class="card-title">1 месяц плотной личной работы</div>
+            <div class="card-title">Формат 1. Базовый (1 месяц)</div>
           </div>
           <div class="price-row">
-            <span class="price-main">{price_p1} ₽</span>
+            <span class="price-main">{price_p1_basic} ₽</span>
           </div>
           <ul class="bullet-list">
-            <li>4 плотные личные сессии по 3–4 часа, 1 раз в неделю.</li>
-            <li>4 коротких созвона по ходу месяца.</li>
-            <li>Сопровождение между встречами и точечная настройка состояния.</li>
+            <li>1 сессия/неделю, 90–120 минут</li>
+            <li>Глубокая проработка состояния и сценариев</li>
+            <li>Без сопровождения между сессиями</li>
           </ul>
         </div>
 
-        <div class="card personal-card" data-personal="2m" onclick="selectPersonal('2m')">
+        <div class="card personal-card" data-personal="personal_1m_plus" onclick="selectPersonal('personal_1m_plus')">
           <div class="card-header">
-            <div class="card-title">2 месяца глубокой перестройки</div>
+            <div class="card-title">Формат 2. Базовый + сопровождение (1 месяц)</div>
+          </div>
+          <div class="price-row">
+            <span class="price-main">{price_p1_plus} ₽</span>
+          </div>
+          <ul class="bullet-list">
+            <li>1 сессия/неделю, 90–120 минут</li>
+            <li>Экспресс‑корректировки до 30 минут между встречами</li>
+            <li>Поддержка динамики и фиксация результата</li>
+          </ul>
+        </div>
+
+        <div class="card personal-card" data-personal="personal_2m" onclick="selectPersonal('personal_2m')">
+          <div class="card-header">
+            <div class="card-title">Формат 3. Интенсив (2 месяца)</div>
           </div>
           <div class="price-row">
             <span class="price-main">{price_p2} ₽</span>
           </div>
           <ul class="bullet-list">
-            <li>8 глубоких сессий по 3–4 часа, 1 раз в неделю.</li>
-            <li>Еженедельные сверки по динамике и метрикам.</li>
-            <li>Глубокая проработка сценариев и время на закрепление изменений.</li>
+            <li>1 сессия/неделю (2 месяца), 90–120 минут</li>
+            <li>Последовательная глубинная перестройка состояния</li>
+            <li>Время на закрепление изменений</li>
           </ul>
         </div>
 
-        <div class="card personal-card" data-personal="4m" onclick="selectPersonal('4m')">
+        <div class="card personal-card" data-personal="personal_2m_plus" onclick="selectPersonal('personal_2m_plus')">
           <div class="card-header">
-            <div class="card-title">4 месяца VIP‑сопровождения</div>
+            <div class="card-title">Формат 4. Интенсив + сопровождение (2 месяца)</div>
           </div>
           <div class="price-row">
-            <span class="price-main">{price_p4} ₽</span>
+            <span class="price-main">{price_p2_plus} ₽</span>
           </div>
           <ul class="bullet-list">
-            <li>16 глубоких личных сессий по 3–4 часа.</li>
-            <li>Длительное сопровождение и регулярная корректировка состояния.</li>
-            <li>Работа не рывком, а через устойчивую интеграцию в жизнь.</li>
+            <li>1 сессия/неделю (2 месяца), 90–120 минут</li>
+            <li>Экспресс‑корректировки до 30 минут между встречами</li>
+            <li>Максимум плотности + более управляемое сопровождение</li>
+          </ul>
+        </div>
+
+        <div class="card personal-card" data-personal="personal_12m_private" onclick="selectPersonal('personal_12m_private')">
+          <div class="card-header">
+            <div class="card-title">Формат 5. Private (12 месяцев)</div>
+          </div>
+          <div class="price-row">
+            <span class="price-main">{price_p5_private} ₽</span>
+          </div>
+          <ul class="bullet-list">
+            <li>Годовая глубинная работа + персональное сопровождение</li>
+            <li>Регулярные корректировки состояния по ходу периода</li>
+            <li>Для клиентов, которым важна высокая внутренняя устойчивость</li>
           </ul>
         </div>
       </div>
@@ -688,7 +730,7 @@ def _miniapp_html() -> str:
     }}
 
     let groupTariff = 'standard';
-    let personalChoice = '1m';
+    let personalChoice = 'personal_1m_basic';
 
     function showView(id) {{
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -761,10 +803,7 @@ def _miniapp_html() -> str:
     }}
 
     function onPayPersonal() {{
-      let code = 'personal_1m';
-      if (personalChoice === '2m') code = 'personal_2m';
-      if (personalChoice === '4m') code = 'personal_4m';
-      createOrder(code);
+      createOrder(personalChoice);
     }}
 
     function onThink(from) {{
