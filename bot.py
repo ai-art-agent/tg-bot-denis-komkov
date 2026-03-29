@@ -21,7 +21,7 @@ from typing import Optional, Callable
 from robokassa_integration import PaymentsDB, _to_amount_str
 
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import InputFile, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -46,6 +46,18 @@ BOT_DESCRIPTION = (
 _PROMPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "system_prompt.txt")
 _VALIDATOR_PROMPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "validator_prompt.txt")
 _SIMULATOR_PROMPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user_simulator_prompt.txt")
+
+# Публичная оферта (команда /offer): по умолчанию oferta_denis_komkov.pdf рядом с bot.py; иначе OFFER_PDF_PATH в .env.
+_OFFER_PDF_BASENAME = "oferta_denis_komkov.pdf"
+
+
+def _offer_pdf_path() -> Optional[str]:
+    custom = (os.getenv("OFFER_PDF_PATH") or "").strip()
+    if custom and os.path.isfile(custom):
+        return custom
+    default = os.path.join(os.path.dirname(os.path.abspath(__file__)), _OFFER_PDF_BASENAME)
+    return default if os.path.isfile(default) else None
+
 
 load_dotenv()
 # Максимальный размер ответа в символах (для промптов). В system_prompt.txt и validator_prompt.txt
@@ -626,7 +638,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_access(update):
         return
     await update.message.reply_text(
-        "Команды: /start — начало разговора, /help — эта справка."
+        "Команды: /start — начало разговора, /help — эта справка, /offer — скачать оферту."
         + (" /support — контакты поддержки." if SUPPORT_TEXT else "")
         + (" /privacy — конфиденциальность." if PRIVACY_TEXT else "")
         + (" /new — начать диалог заново (сбросить контекст)." if MAX_HISTORY_MESSAGES else "")
@@ -649,6 +661,30 @@ async def cmd_privacy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("Команда не настроена.")
         return
     await update.message.reply_text(PRIVACY_TEXT)
+
+
+async def cmd_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Отправка файла публичной оферты (PDF)."""
+    if not await check_access(update):
+        return
+    path = _offer_pdf_path()
+    if not path:
+        await update.message.reply_text(
+            "Оферта сейчас недоступна. Положите файл oferta_denis_komkov.pdf рядом с bot.py на сервере "
+            "или укажите путь в переменной OFFER_PDF_PATH."
+        )
+        return
+    try:
+        await update.message.reply_document(
+            document=InputFile(path, filename=_OFFER_PDF_BASENAME),
+            caption="Публичная оферта.",
+        )
+    except OSError:
+        logging.exception("cmd_offer: cannot read %s", path)
+        await update.message.reply_text("Не удалось прочитать файл оферты. Попробуйте позже.")
+    except Exception:
+        logging.exception("cmd_offer: send failed")
+        await update.message.reply_text("Не удалось отправить файл. Попробуйте позже.")
 
 
 async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1173,6 +1209,7 @@ def build_application() -> Application:
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("offer", cmd_offer))
     if MAX_HISTORY_MESSAGES:
         app.add_handler(CommandHandler("new", cmd_new))
     if SUPPORT_TEXT:
