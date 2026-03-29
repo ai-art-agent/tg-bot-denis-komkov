@@ -21,7 +21,7 @@ from typing import Optional, Callable
 from robokassa_integration import PaymentsDB, _to_amount_str
 
 from dotenv import load_dotenv
-from telegram import InputFile, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import BufferedInputFile, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -675,13 +675,28 @@ async def cmd_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     try:
-        await update.message.reply_document(
-            document=InputFile(path, filename=_OFFER_PDF_BASENAME),
-            caption="Публичная оферта.",
-        )
+        with open(path, "rb") as f:
+            pdf_bytes = f.read()
     except OSError:
         logging.exception("cmd_offer: cannot read %s", path)
         await update.message.reply_text("Не удалось прочитать файл оферты. Попробуйте позже.")
+        return
+    if len(pdf_bytes) < 8 or not pdf_bytes.startswith(b"%PDF"):
+        logging.error("cmd_offer: not a valid PDF (%s, %s bytes)", path, len(pdf_bytes))
+        await update.message.reply_text(
+            "Файл оферты на сервере повреждён или это не PDF (часто так бывает, если в git попал "
+            "только LFS-указатель вместо самого файла). Замените файл на ВМ на настоящий PDF."
+        )
+        return
+    doc = BufferedInputFile(pdf_bytes, filename=_OFFER_PDF_BASENAME)
+    try:
+        # disable_content_type_detection: не даём Telegram переопределить тип — иначе встроенный просмотр иногда «чернит» PDF.
+        await update.message.reply_document(
+            document=doc,
+            caption="Публичная оферта.",
+            disable_content_type_detection=True,
+            write_timeout=120.0,
+        )
     except Exception:
         logging.exception("cmd_offer: send failed")
         await update.message.reply_text("Не удалось отправить файл. Попробуйте позже.")
