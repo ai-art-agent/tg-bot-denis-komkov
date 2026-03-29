@@ -21,7 +21,7 @@ from typing import Optional, Callable
 from robokassa_integration import PaymentsDB, _to_amount_str
 
 from dotenv import load_dotenv
-from telegram import BufferedInputFile, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import InputFile, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -688,11 +688,10 @@ async def cmd_offer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "только LFS-указатель вместо самого файла). Замените файл на ВМ на настоящий PDF."
         )
         return
-    doc = BufferedInputFile(pdf_bytes, filename=_OFFER_PDF_BASENAME)
     try:
-        # disable_content_type_detection: не даём Telegram переопределить тип — иначе встроенный просмотр иногда «чернит» PDF.
+        # bytes + InputFile (BufferedInputFile есть не во всех сборках PTB и ломал import). disable_content_type_detection — стабильнее просмотр PDF.
         await update.message.reply_document(
-            document=doc,
+            document=InputFile(pdf_bytes, filename=_OFFER_PDF_BASENAME),
             caption="Публичная оферта.",
             disable_content_type_detection=True,
             write_timeout=120.0,
