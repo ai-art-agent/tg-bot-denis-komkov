@@ -194,6 +194,14 @@ class PaymentsDB:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_activity (
+                    user_id INTEGER PRIMARY KEY,
+                    first_message_at INTEGER NOT NULL
+                )
+                """
+            )
         finally:
             conn.close()
 
@@ -486,6 +494,38 @@ class PaymentsDB:
         finally:
             conn.close()
 
+    def touch_user_activity(self, user_id: int, ts: int | None = None) -> None:
+        """Фиксирует время первого сообщения пользователя (только один раз)."""
+        first_ts = int(ts or time.time())
+        conn = self._connect()
+        try:
+            conn.execute(
+                """
+                INSERT INTO user_activity (user_id, first_message_at)
+                VALUES (?, ?)
+                ON CONFLICT(user_id) DO NOTHING
+                """,
+                (int(user_id), first_ts),
+            )
+        finally:
+            conn.close()
+
+    def get_first_message_at(self, user_id: int) -> int | None:
+        conn = self._connect()
+        try:
+            row = conn.execute(
+                "SELECT first_message_at FROM user_activity WHERE user_id = ?",
+                (int(user_id),),
+            ).fetchone()
+            if not row:
+                return None
+            try:
+                return int(row[0])
+            except (TypeError, ValueError):
+                return None
+        finally:
+            conn.close()
+
 
 def _format_client_anket_table(client: dict[str, Any]) -> str:
     """Форматирует анкету клиента в читаемую таблицу для Telegram."""
@@ -641,19 +681,29 @@ def telegram_send_message(
     chat_id: int | str,
     text: str,
     disable_web_preview: bool = False,
+    message_thread_id: int | None = None,
 ) -> None:
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = urlencode(
-        {
-            "chat_id": str(chat_id),
-            "text": text,
-            "disable_web_page_preview": "true" if disable_web_preview else "false",
-        }
-    ).encode("utf-8")
+    payload_data = {
+        "chat_id": str(chat_id),
+        "text": text,
+        "disable_web_page_preview": "true" if disable_web_preview else "false",
+    }
+    if message_thread_id is not None:
+        payload_data["message_thread_id"] = str(int(message_thread_id))
+    payload = urlencode(payload_data).encode("utf-8")
     req = Request(url, data=payload, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     with urlopen(req, timeout=10) as resp:
         _ = resp.read()
+
+
+def _env_int(name: str, default: int = 0) -> int:
+    raw = (_env(name, str(default)) or str(default)).strip()
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
 
 
 def build_access_message(product_code: str) -> str:
@@ -707,6 +757,109 @@ def build_access_message(product_code: str) -> str:
 
 
 MSK = ZoneInfo("Europe/Moscow")
+
+
+def _format_msk(ts_utc: int) -> str:
+    return datetime.fromtimestamp(int(ts_utc), tz=timezone.utc).astimezone(MSK).strftime("%d.%m.%Y %H:%M")
+
+
+def _build_paid_status_message(
+    order: dict[str, Any],
+    client: dict[str, Any] | None,
+    first_message_at: int | None = None,
+    *,
+    is_test: bool = False,
+) -> str:
+    paid_at = order.get("paid_at")
+    if paid_at:
+        dt = datetime.fromtimestamp(int(paid_at), tz=timezone.utc).astimezone(MSK)
+        paid_at_msk = dt.strftime("%d.%m.%Y %H:%M")
+    else:
+        paid_at_msk = "—"
+    product_code = str(order.get("product_code") or "—")
+    amount = str(order.get("amount") or "—")
+    inv_id = str(order.get("inv_id") or "—")
+    user_id = str(order.get("user_id") or "—")
+    chat_id = str(order.get("chat_id") or "—")
+    lines = [
+        "✅ Оплата подтверждена",
+    ]
+    if is_test:
+        lines.append("Тестовый платёж")
+    lines += [
+        f"Дата/время (МСК): {paid_at_msk}",
+        f"InvId: {inv_id}",
+        f"Продукт: {product_code}",
+        f"Сумма: {amount} ₽",
+        f"user_id: {user_id}",
+        f"chat_id: {chat_id}",
+    ]
+    if client:
+        uname = (client.get("username") or "").strip()
+        if uname:
+            lines.append(f"@username: @{uname.lstrip('@')}")
+        contact = (client.get("contact_value") or "").strip()
+        if contact:
+            lines.append(f"Контакт: {contact}")
+    try:
+        if first_message_at and paid_at:
+            delta = max(0, int(paid_at) - int(first_message_at))
+            hh = delta // 3600
+            mm = (delta % 3600) // 60
+            ss = delta % 60
+            lines.append(f"Длительность до оплаты: {hh:02d}:{mm:02d}:{ss:02d}")
+            lines.append(f"Первое сообщение (МСК): {_format_msk(int(first_message_at))}")
+    except Exception:
+        pass
+    lines.append("")
+    lines.append("Анкета:")
+    if client:
+        lines.append(_format_client_anket_table(client))
+    else:
+        lines.append("Анкета клиента отсутствует.")
+    text = "\n".join(lines)
+    return text if len(text) <= 3900 else (text[:3897] + "...")
+
+
+def send_paid_status_to_topic(
+    bot_token: str,
+    order: dict[str, Any],
+    db: "PaymentsDB",
+    *,
+    is_test: bool = False,
+) -> None:
+    """
+    Отправляет в Telegram-группу с темами карточку «оплачено»:
+    ключевые данные платежа + анкета клиента.
+    При is_test (ROBOKASSA_IS_TEST=1) добавляется строка «Тестовый платёж».
+    """
+    chat_id_raw = (_env("TELEGRAM_CLIENT_STATUS_CHAT_ID") or _env("TELEGRAM_GROUP_NOTIFY_CHAT_ID") or "").strip()
+    if not chat_id_raw:
+        return
+    topic_id = _env_int("TELEGRAM_TOPIC_PAID_ID", 0)
+    notify_chat_id = _parse_notify_chat_id(chat_id_raw)
+    if notify_chat_id is None:
+        return
+    client = None
+    first_message_at = None
+    uid = order.get("user_id")
+    if uid is not None:
+        try:
+            client = db.get_client(int(uid))
+            first_message_at = db.get_first_message_at(int(uid))
+        except Exception:
+            client = None
+            first_message_at = None
+    text = _build_paid_status_message(
+        order, client, first_message_at=first_message_at, is_test=is_test
+    )
+    telegram_send_message(
+        bot_token=bot_token,
+        chat_id=notify_chat_id,
+        text=text,
+        disable_web_preview=True,
+        message_thread_id=topic_id if topic_id > 0 else None,
+    )
 
 
 def process_result_url(
@@ -768,6 +921,10 @@ def process_result_url(
                 send_group_payment_notify_immediate(bot_token, db.get_order(inv_id), db=db)
             except Exception as e:
                 log.exception("ResultURL: group digest immediate notify failed: %s", e)
+            try:
+                send_paid_status_to_topic(bot_token, db.get_order(inv_id), db=db, is_test=cfg.is_test)
+            except Exception as e:
+                log.exception("ResultURL: paid status topic notify failed: %s", e)
 
     return (True, inv_id)
 

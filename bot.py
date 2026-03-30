@@ -15,10 +15,12 @@ import logging.handlers
 import tempfile
 import time
 import asyncio
+from datetime import datetime, timezone
 from collections import defaultdict
 from typing import Optional, Callable
+from zoneinfo import ZoneInfo
 
-from robokassa_integration import PaymentsDB, _to_amount_str
+from robokassa_integration import PaymentsDB, _format_client_anket_table, _to_amount_str
 
 from dotenv import load_dotenv
 from telegram import InputFile, Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
@@ -60,6 +62,25 @@ def _offer_pdf_path() -> Optional[str]:
 
 
 load_dotenv()
+
+MSK = ZoneInfo("Europe/Moscow")
+
+
+def _parse_int_env(name: str, default: int) -> int:
+    raw = (os.getenv(name, str(default)) or str(default)).strip()
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+CLIENT_STATUS_CHAT_ID_RAW = (os.getenv("TELEGRAM_CLIENT_STATUS_CHAT_ID") or os.getenv("TELEGRAM_GROUP_NOTIFY_CHAT_ID") or "").strip()
+CLIENT_TOPIC_PAID_ID = _parse_int_env("TELEGRAM_TOPIC_PAID_ID", 0)
+CLIENT_TOPIC_PAUSED_ID = _parse_int_env("TELEGRAM_TOPIC_PAUSED_ID", 0)
+CLIENT_INACTIVITY_SECONDS = max(60, _parse_int_env("CLIENT_INACTIVITY_SECONDS", 300))
+
+_INACTIVITY_TASKS: dict[int, asyncio.Task] = {}
+_INACTIVE_SINCE_TS: dict[int, int] = {}
 # Максимальный размер ответа в символах (для промптов). В system_prompt.txt и validator_prompt.txt
 # используйте плейсхолдер {{MAX_RESPONSE_CHARS}} — он подставится при загрузке. Можно задать в .env.
 try:
@@ -600,6 +621,132 @@ def _remove_last_from_history(user_id: int) -> None:
         db.set_user_history(user_id, messages)
 
 
+def _parse_chat_id(chat_id_raw: str) -> Optional[int | str]:
+    s = (chat_id_raw or "").strip()
+    if not s:
+        return None
+    if s.lstrip("-").isdigit():
+        return int(s)
+    return s if s.startswith("@") else f"@{s}"
+
+
+def _format_msk(ts_utc: int) -> str:
+    return datetime.fromtimestamp(int(ts_utc), tz=timezone.utc).astimezone(MSK).strftime("%d.%m.%Y %H:%M")
+
+
+def _build_stage_label(context: ContextTypes.DEFAULT_TYPE) -> str:
+    step = (context.user_data.get("last_step") or "").strip()
+    product = (context.user_data.get("selected_product") or "").strip()
+    tariff = (context.user_data.get("group_tariff") or "").strip()
+    parts = []
+    if step:
+        parts.append(f"этап: {step}")
+    if product:
+        parts.append(f"продукт: {product}")
+    if tariff:
+        parts.append(f"тариф: {tariff}")
+    return ", ".join(parts) if parts else "этап не определён"
+
+
+async def _send_status_topic_message(context: ContextTypes.DEFAULT_TYPE, text: str, *, topic_id: int = 0) -> None:
+    chat_id = _parse_chat_id(CLIENT_STATUS_CHAT_ID_RAW)
+    if chat_id is None:
+        return
+    try:
+        kwargs = {}
+        if topic_id > 0:
+            kwargs["message_thread_id"] = topic_id
+        if len(text) > 3900:
+            text = text[:3897] + "..."
+        await context.bot.send_message(chat_id=chat_id, text=text, disable_web_page_preview=True, **kwargs)
+    except Exception:
+        logging.exception("status topic: send failed")
+
+
+async def _notify_resume_if_needed(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
+    paused_at = _INACTIVE_SINCE_TS.pop(user_id, None)
+    if not paused_at:
+        return
+    now_ts = int(time.time())
+    user = update.effective_user
+    uname = f"@{user.username}" if (user and user.username) else "—"
+    text = (
+        "▶️ Клиент возобновил активность\n"
+        f"Дата/время возобновления (МСК): {_format_msk(now_ts)}\n"
+        f"Приостановка была (МСК): {_format_msk(paused_at)}\n"
+        f"user_id: {user_id}\n"
+        f"@username: {uname}\n"
+        f"Текущий контекст: {_build_stage_label(context)}"
+    )
+    await _send_status_topic_message(context, text, topic_id=CLIENT_TOPIC_PAUSED_ID)
+
+
+def _snapshot_client_to_db(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat:
+        return
+    try:
+        _get_payments_db().upsert_client(
+            user_id=user.id,
+            chat_id=chat.id,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            form_address=context.user_data.get("form_address"),
+            product=context.user_data.get("selected_product"),
+            tariff=context.user_data.get("group_tariff"),
+            readiness=context.user_data.get("readiness"),
+        )
+    except Exception:
+        logging.exception("status topic: snapshot client upsert failed")
+
+
+async def _inactivity_watch(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, stage_snapshot: str) -> None:
+    try:
+        await asyncio.sleep(CLIENT_INACTIVITY_SECONDS)
+        now_ts = int(time.time())
+        _INACTIVE_SINCE_TS[user_id] = now_ts
+        _snapshot_client_to_db(update, context)
+        client = _get_payments_db().get_client(user_id)
+        user = update.effective_user
+        uname = f"@{user.username}" if (user and user.username) else "—"
+        text = (
+            "⏸ Клиент приостановил активность\n"
+            f"Дата/время (МСК): {_format_msk(now_ts)}\n"
+            f"user_id: {user_id}\n"
+            f"@username: {uname}\n"
+            f"Этап остановки: {stage_snapshot}\n\n"
+            "Анкета:\n"
+            + (_format_client_anket_table(client) if client else "Анкета клиента отсутствует.")
+        )
+        await _send_status_topic_message(context, text, topic_id=CLIENT_TOPIC_PAUSED_ID)
+    except asyncio.CancelledError:
+        return
+    except Exception:
+        logging.exception("status topic: inactivity watch failed")
+
+
+async def _mark_user_activity(update: Update, context: ContextTypes.DEFAULT_TYPE, *, stage_hint: Optional[str] = None) -> None:
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not user_id:
+        return
+    try:
+        _get_payments_db().touch_user_activity(user_id)
+    except Exception:
+        logging.exception("status topic: touch_user_activity failed")
+    if not CLIENT_STATUS_CHAT_ID_RAW:
+        return
+    if stage_hint:
+        context.user_data["last_step"] = stage_hint
+    await _notify_resume_if_needed(update, context, user_id)
+    prev = _INACTIVITY_TASKS.get(user_id)
+    if prev and not prev.done():
+        prev.cancel()
+    snapshot = _build_stage_label(context)
+    _INACTIVITY_TASKS[user_id] = asyncio.create_task(_inactivity_watch(update, context, user_id, snapshot))
+
+
 def truncate_response(text: str) -> str:
     if MAX_RESPONSE_LENGTH <= 0:
         return text
@@ -779,6 +926,7 @@ async def handle_step_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_text = (update.callback_query.data or "").strip()
     if not user_text:
         return
+    await _mark_user_activity(update, context, stage_hint=f"callback:{user_text}")
 
     # Запоминаем форму обращения для кнопки readiness.
     if user_text in ("Мужская форма обращения", "Женская форма обращения", "Нейтральная форма обращения"):
@@ -1080,6 +1228,8 @@ async def _reply_to_user(
         reply_clean, step_id = _parse_step_from_reply(reply_raw)
         if step_id is None:
             step_id = _force_readiness_step_if_relevant(reply_clean)
+        if step_id:
+            context.user_data["last_step"] = step_id
         keyboard = _keyboard_for_step(step_id, context, chat_id=chat.id, user_id=user_id) if step_id else None
         if keyboard is None:
             reply_clean, keyboard = _parse_custom_buttons(reply_clean)
@@ -1125,6 +1275,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not text:
         await update.message.reply_text("Напиши текстом, пожалуйста.")
         return
+    await _mark_user_activity(update, context)
 
     # Переход в мини-приложение после текстового согласия «готов меняться».
     if text.strip().lower() in READINESS_CONSENT_TEXTS:
@@ -1161,6 +1312,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     user_id = update.effective_user.id
+    await _mark_user_activity(update, context, stage_hint="voice_input")
     voice = update.message.voice
     await update.message.chat.send_action("typing")
 
