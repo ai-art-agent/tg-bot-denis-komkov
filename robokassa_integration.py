@@ -695,7 +695,14 @@ def telegram_send_message(
     req = Request(url, data=payload, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     with urlopen(req, timeout=10) as resp:
-        _ = resp.read()
+        raw = resp.read().decode("utf-8", errors="replace")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Telegram sendMessage: not JSON: {raw[:200]}") from e
+    if not data.get("ok"):
+        desc = data.get("description") or raw
+        raise RuntimeError(f"Telegram sendMessage failed: {desc}")
 
 
 def _env_int(name: str, default: int = 0) -> int:
@@ -833,12 +840,18 @@ def send_paid_status_to_topic(
     ключевые данные платежа + анкета клиента.
     При is_test (ROBOKASSA_IS_TEST=1) добавляется строка «Тестовый платёж».
     """
+    log = logging.getLogger(__name__)
     chat_id_raw = (_env("TELEGRAM_CLIENT_STATUS_CHAT_ID") or _env("TELEGRAM_GROUP_NOTIFY_CHAT_ID") or "").strip()
     if not chat_id_raw:
+        log.warning(
+            "send_paid_status_to_topic: пропуск — в окружении нет TELEGRAM_CLIENT_STATUS_CHAT_ID "
+            "и TELEGRAM_GROUP_NOTIFY_CHAT_ID (robokassa-server должен видеть .env)."
+        )
         return
     topic_id = _env_int("TELEGRAM_TOPIC_PAID_ID", 0)
     notify_chat_id = _parse_notify_chat_id(chat_id_raw)
     if notify_chat_id is None:
+        log.warning("send_paid_status_to_topic: пропуск — не удалось разобрать chat_id: %r", chat_id_raw)
         return
     client = None
     first_message_at = None
@@ -853,13 +866,27 @@ def send_paid_status_to_topic(
     text = _build_paid_status_message(
         order, client, first_message_at=first_message_at, is_test=is_test
     )
-    telegram_send_message(
-        bot_token=bot_token,
-        chat_id=notify_chat_id,
-        text=text,
-        disable_web_preview=True,
-        message_thread_id=topic_id if topic_id > 0 else None,
-    )
+    if not (bot_token or "").strip():
+        log.warning("send_paid_status_to_topic: пропуск — пустой TELEGRAM_BOT_TOKEN")
+        return
+    try:
+        telegram_send_message(
+            bot_token=bot_token,
+            chat_id=notify_chat_id,
+            text=text,
+            disable_web_preview=True,
+            message_thread_id=topic_id if topic_id > 0 else None,
+        )
+        log.info(
+            "send_paid_status_to_topic: отправлено в chat=%s thread=%s inv_id=%s",
+            notify_chat_id,
+            topic_id or "—",
+            order.get("inv_id"),
+        )
+    except Exception:
+        log.exception(
+            "send_paid_status_to_topic: ошибка Telegram (проверьте токен, что бот в группе и TELEGRAM_TOPIC_PAID_ID)"
+        )
 
 
 def process_result_url(
@@ -896,6 +923,13 @@ def process_result_url(
         return (False, inv_id)
 
     newly_paid = db.mark_paid_if_pending(inv_id, raw_params=parsed.get("raw") or {})
+    if not newly_paid:
+        st = (order.get("status") or "").strip()
+        if st == "paid":
+            log.info(
+                "ResultURL: InvId=%s уже был оплачен — уведомления в Telegram не дублируются",
+                inv_id,
+            )
     if newly_paid:
         order = db.get_order(inv_id)
         if order:
