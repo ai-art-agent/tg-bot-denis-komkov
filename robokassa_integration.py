@@ -720,6 +720,11 @@ def build_access_message(product_code: str) -> str:
     """
     code = (product_code or "").strip()
 
+    support_tail = (
+        "\n\nЕсли у вас есть вопросы, напишите в поддержку: "
+        "https://t.me/KomkovDenis_support"
+    )
+
     # Диагностическая консультация
     if code == "webinar":
         url = _env("DIAGNOSTIC_CONSULT_ACCESS_URL", _env("WEBINAR_ACCESS_URL", "")) or ""
@@ -729,11 +734,11 @@ def build_access_message(product_code: str) -> str:
                 "Вот ссылка для записи или связи:\n"
                 f"{url}\n\n"
                 "Благодарю за доверие. Напишите в чат, и мы согласуем удобное время."
-            )
+            ) + support_tail
         return (
             "Оплата диагностической консультации прошла успешно.\n\n"
             "Напишите в чат, и мы согласуем удобное время встречи. Благодарю за доверие!"
-        )
+        ) + support_tail
 
     # Групповые занятия — нейтрально, от лица Дениса
     if code in ("group", "group_standard", "group_vip"):
@@ -741,7 +746,7 @@ def build_access_message(product_code: str) -> str:
             "Благодарю за оплату групповых занятий!\n\n"
             "Я очень ценю ваше доверие. "
             "В ближайшее время я свяжусь с вами для выбора удобного времени."
-        )
+        ) + support_tail
 
     # Платный бот / ИИ-психолог — нейтрально, от лица Дениса
     if code == "pro":
@@ -753,13 +758,13 @@ def build_access_message(product_code: str) -> str:
                 "и жизненного опыта — он создан, чтобы быть рядом в важные моменты.\n\n"
                 f"Переходите по ссылке:\n{url}\n\n"
                 "Желаю продуктивной работы."
-            )
+            ) + support_tail
         return (
             "Оплата прошла успешно! Доступ к ИИ-психологу будет выдан в ближайшее время. "
             "Благодарю за доверие!"
-        )
+        ) + support_tail
 
-    return "Оплата прошла успешно. Благодарю за доверие!"
+    return "Оплата прошла успешно. Благодарю за доверие!" + support_tail
 
 
 MSK = ZoneInfo("Europe/Moscow")
