@@ -255,7 +255,8 @@ STREAM_RESPONSE = True
 VOICE_ENABLED = True
 
 MINIAPP_URL_BASE = (os.getenv("MINIAPP_URL") or "").strip()
-# Файл с текущим URL мини-приложения (заполняется скриптом cloudflared quick tunnel). Приоритет над .env.
+PUBLIC_BASE_URL = (os.getenv("PUBLIC_BASE_URL") or "").strip().rstrip("/")
+# Файл с текущим URL мини-приложения (заполняется скриптом cloudflared quick tunnel).
 MINIAPP_URL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "miniapp_url.txt")
 
 # Кнопки по шагам диалога: ключ = step_id из тега [STEP:step_id] в ответе модели.
@@ -486,7 +487,17 @@ def _readiness_label_and_callback(form_address: Optional[str]) -> tuple[str, str
 
 
 def _get_miniapp_base() -> str:
-    """Базовый URL мини-приложения: сначала из файла miniapp_url.txt (от cloudflared), иначе из .env."""
+    """
+    Полный URL страницы мини-приложения (с путём /miniapp), с query к chat_id/user_id добавит _build_miniapp_url.
+    Приоритет:
+      1) MINIAPP_URL в .env — явное значение;
+      2) PUBLIC_BASE_URL + /miniapp — стабильный домен (DuckDNS, свой хост);
+      3) miniapp_url.txt — URL от cloudflared quick tunnel.
+    """
+    if MINIAPP_URL_BASE:
+        return MINIAPP_URL_BASE
+    if PUBLIC_BASE_URL:
+        return f"{PUBLIC_BASE_URL}/miniapp"
     try:
         if os.path.isfile(MINIAPP_URL_FILE):
             with open(MINIAPP_URL_FILE, "r", encoding="utf-8") as f:
@@ -495,7 +506,7 @@ def _get_miniapp_base() -> str:
                     return line
     except Exception:
         pass
-    return MINIAPP_URL_BASE or ""
+    return ""
 
 
 def _build_miniapp_url(chat_id: int, user_id: int) -> Optional[str]:

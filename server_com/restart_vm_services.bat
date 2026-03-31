@@ -12,11 +12,12 @@ set "HOST=enhel-method@158.160.169.204"
 rem ===== Каталог проекта на ВМ =====
 set "REMOTE_PROJECT_DIR=~/tg-ai-denis-komkov"
 
-rem ===== Имена служб systemd на ВМ (подправьте при необходимости) =====
+rem ===== Имена служб systemd на ВМ (только стек Дениса; Энхель — robokassa-server — не трогаем) =====
 set "BOT_SERVICE=tg-ai-denis-komkov"
-set "ROBOKASSA_SERVICE=robokassa-server"
-set "TUNNEL_SERVICE=cloudflared"
-set "TUNNEL_SERVICE_ALT=cloudflared-quick"
+set "ROBOKASSA_SERVICE=robokassa-server-denis"
+rem Сначала quick-туннель (как у вас на ВМ), иначе unit cloudflared
+set "TUNNEL_SERVICE=cloudflared-quick"
+set "TUNNEL_SERVICE_ALT=cloudflared"
 
 echo Перезапуск служб на ВМ %HOST%...
 echo.
