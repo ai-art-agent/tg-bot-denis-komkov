@@ -32,6 +32,7 @@ HTTP-сервер Robokassa для развёртывания на ВМ (Yandex 
 """
 
 import os
+import sys
 import time
 import json
 import logging
@@ -40,7 +41,8 @@ from typing import Any, Dict
 
 from dotenv import load_dotenv
 
-load_dotenv()
+_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_ROOT_DIR, ".env"))
 
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, HTMLResponse
@@ -55,23 +57,53 @@ from robokassa_integration import (
     _to_amount_str,
 )
 
+_LOG_FORMAT = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 logger = logging.getLogger("robokassa_server")
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
-# Ротация лога оплат (ВМ): robokassa.log, до 5 MB, 2 резервные копии (см. LOGGING.md).
+logger.setLevel(logging.INFO)
+logger.handlers.clear()
+logger.propagate = False
+
+# В journalctl (stderr) — uvicorn перехватывает root-логгер, поэтому пишем явно в stderr.
+_stderr = logging.StreamHandler(sys.stderr)
+_stderr.setFormatter(_LOG_FORMAT)
+logger.addHandler(_stderr)
+
+# Файл рядом с robokassa_server.py (не зависит от того, какой WorkingDirectory у systemd).
+_ROBOKASSA_LOG_PATH = os.path.join(_ROOT_DIR, "robokassa.log")
 _robokassa_handler = logging.handlers.RotatingFileHandler(
-    "robokassa.log",
+    _ROBOKASSA_LOG_PATH,
     maxBytes=5 * 1024 * 1024,
     backupCount=2,
     encoding="utf-8",
 )
-_robokassa_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+_robokassa_handler.setFormatter(_LOG_FORMAT)
 logger.addHandler(_robokassa_handler)
-logger.setLevel(logging.INFO)
+
+# Сообщения из robokassa_integration (ResultURL, уведомления в Telegram) — туда же в stderr и файл.
+_integ_logger = logging.getLogger("robokassa_integration")
+_integ_logger.setLevel(logging.INFO)
+_integ_logger.handlers.clear()
+_integ_logger.propagate = False
+_integ_logger.addHandler(_stderr)
+_integ_logger.addHandler(_robokassa_handler)
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+async def _log_startup_diagnostics() -> None:
+    logger.info(
+        "Старт robokassa_server: cwd=%s, лог-файл=%s",
+        os.getcwd(),
+        _ROBOKASSA_LOG_PATH,
+    )
+    logger.info(
+        "Переменные для уведомлений в группу: CLIENT_STATUS_CHAT=%s, TOPIC_PAID=%s, BOT_TOKEN=%s",
+        "да" if (os.getenv("TELEGRAM_CLIENT_STATUS_CHAT_ID") or "").strip() else "нет",
+        "да" if (os.getenv("TELEGRAM_TOPIC_PAID_ID") or "").strip() else "нет",
+        "да" if (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip() else "нет",
+    )
 
 
 def _amount_from_env(name: str, default: str) -> str:
