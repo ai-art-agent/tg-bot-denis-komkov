@@ -497,7 +497,11 @@ def _get_miniapp_base() -> str:
     if MINIAPP_URL_BASE:
         return MINIAPP_URL_BASE
     if PUBLIC_BASE_URL:
-        return f"{PUBLIC_BASE_URL}/miniapp"
+        # Telegram WebApp открывается только по HTTPS; если PUBLIC_BASE_URL не HTTPS,
+        # не используем его для miniapp и пробуем miniapp_url.txt (cloudflared).
+        if PUBLIC_BASE_URL.startswith("https://"):
+            return f"{PUBLIC_BASE_URL}/miniapp"
+        logging.warning("PUBLIC_BASE_URL is not HTTPS; skipped for MINIAPP_URL: %s", PUBLIC_BASE_URL)
     try:
         if os.path.isfile(MINIAPP_URL_FILE):
             with open(MINIAPP_URL_FILE, "r", encoding="utf-8") as f:
