@@ -37,9 +37,17 @@ import time
 import json
 import logging
 import logging.handlers
+from contextlib import asynccontextmanager
 from typing import Any, Dict
 
 from dotenv import load_dotenv
+
+# Метки времени в логах этого процесса — по Москве (на Linux см. также timedatectl).
+os.environ.setdefault("TZ", "Europe/Moscow")
+try:
+    time.tzset()
+except AttributeError:
+    pass
 
 _ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(_ROOT_DIR, ".env"))
@@ -88,11 +96,14 @@ _integ_logger.propagate = False
 _integ_logger.addHandler(_stderr)
 _integ_logger.addHandler(_robokassa_handler)
 
-app = FastAPI()
 
-
-@app.on_event("startup")
-async def _log_startup_diagnostics() -> None:
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # Явная строка в stderr — видна в journalctl даже при чужом конфиге логов uvicorn.
+    sys.stderr.write(
+        f"[robokassa_server] старт: root={_ROOT_DIR} cwd={os.getcwd()} log={_ROBOKASSA_LOG_PATH}\n"
+    )
+    sys.stderr.flush()
     logger.info(
         "Старт robokassa_server: cwd=%s, лог-файл=%s",
         os.getcwd(),
@@ -104,6 +115,11 @@ async def _log_startup_diagnostics() -> None:
         "да" if (os.getenv("TELEGRAM_TOPIC_PAID_ID") or "").strip() else "нет",
         "да" if (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip() else "нет",
     )
+    yield
+    logger.info("Остановка robokassa_server")
+
+
+app = FastAPI(lifespan=_lifespan)
 
 
 def _amount_from_env(name: str, default: str) -> str:

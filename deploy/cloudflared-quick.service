@@ -8,6 +8,7 @@ Type=simple
 User=enhel-method
 WorkingDirectory=/home/enhel-method
 Environment=MINIAPP_URL_FILE=/home/enhel-method/tg-ai-denis-komkov/miniapp_url.txt
+Environment=TZ=Europe/Moscow
 Environment=PATH=/usr/bin:/bin
 ExecStart=/home/enhel-method/tg-ai-denis-komkov/deploy/run_cloudflared_quick.sh
 Restart=always

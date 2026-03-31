@@ -16,6 +16,7 @@ Type=simple
 User=enhel-method
 WorkingDirectory=/home/enhel-method/tg-ai-denis-komkov
 Environment=PATH=/home/enhel-method/tg-ai-denis-komkov/venv/bin
+Environment=TZ=Europe/Moscow
 ExecStart=/home/enhel-method/tg-ai-denis-komkov/venv/bin/python bot.py
 Restart=always
 RestartSec=10
